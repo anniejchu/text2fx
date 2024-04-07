@@ -1,0 +1,7 @@
+torch
+torchaudio
+git+https://github.com/descriptinc/audiotools
+dasp-pytorch
+auraloss[all]
+laion-clap
+transformers==4.30.0
