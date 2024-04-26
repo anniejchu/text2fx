@@ -1,5 +1,6 @@
 torch
 torchaudio
+torchvision
 git+https://github.com/descriptinc/audiotools
 dasp-pytorch
 auraloss[all]

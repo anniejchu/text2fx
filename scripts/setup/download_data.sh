@@ -12,6 +12,9 @@ SCRIPTS_DIR="$(dirname "$SETUP_SCRIPTS_DIR")"
 PROJECT_DIR="$(dirname "$SCRIPTS_DIR")"
 LOCAL_DATA_DIR="${PROJECT_DIR}/data/"
 
+echo "SETUP SCRIPTS"
+echo $SETUP_SCRIPTS_DIR
+
 if [ "$1" == "" ]; then
   echo "Usage: $0 <DATA-DIR>"
   exit
@@ -19,8 +22,9 @@ fi
 
 DATA_DIR=$(echo $1 | sed 's:/*$::')
 
-echo Creating symlink from "$LOCAL_DATA_DIR" to "$DATA_DIR"
-ln -s "$DATA_DIR" "$PROJECT_DIR"
+# echo Creating symlink from "$LOCAL_DATA_DIR" to "$DATA_DIR"
+# # if u w
+# ln -s "$DATA_DIR" "$(dirname $LOCAL_DATA_DIR)"
 
 
 ################################################################################
@@ -28,7 +32,7 @@ ln -s "$DATA_DIR" "$PROJECT_DIR"
 ################################################################################
 
 # MTG-Jamendo (152G)
-python "$SETUP_SCRIPTS_DIR"/download_mtg_jamendo.py "$DATA_DIR"
+# python "$SETUP_SCRIPTS_DIR"/download_mtg_jamendo.py "$DATA_DIR"
 
 
 # MUSDB18-HQ (23G)
