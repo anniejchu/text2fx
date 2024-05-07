@@ -6,3 +6,4 @@ dasp-pytorch
 auraloss[all]
 laion-clap
 transformers==4.30.0
+msclap
