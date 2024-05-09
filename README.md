@@ -48,3 +48,20 @@ This repository contains utilities for mapping text descriptions to audio effect
    ./scripts/setup/download_data.sh <DATA-DIR>
    ```
    The script also creates a symbolic link between `text2fx/data/` and `<DATA-DIR>` so that the data is accessible within the project. Depending on your internet connection, the download could take a few hours, so you may want to run within a `tmux` session.
+
+## Running the Gradio UI
+
+1. Run the following command to start the Gradio UI:
+```
+python app.py
+```
+
+## Running txt2fx via command line
+
+1. Run the following command to start the txt2fx command line interface:
+```
+python txt2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"\
+                 --output_folder output \
+                 --text "the sound of a robot" \
+                 --criterion "cosine-sim" 
+```
