@@ -42,6 +42,7 @@ class Distortion(dasp_pytorch.modules.Processor):
         }
         self.num_params = len(self.param_ranges)
 
+
 class Channel(torch.nn.Module):
     def __init__(self, *args):
     
@@ -243,7 +244,7 @@ def text2fx(
     lr: float = 1e-2, 
     n_iters: int = 600,
     criterion: str = "standard", 
-    save_dir: str = "auto" # figure out a save path automatically
+    save_dir: str = None # figure out a save path automatically
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     if not hasattr(text2fx, "msclap"):
@@ -253,7 +254,7 @@ def text2fx(
         msclap = text2fx.msclap
 
     # a save dir for our goods
-    if save_dir == "auto":
+    if save_dir is None:
         save_dir = create_save_dir(text, sig, RUNS_DIR)
     else:
         save_dir = Path(save_dir)
@@ -265,8 +266,9 @@ def text2fx(
     writer = SummaryWriter(writer_dir) 
 
     # params!
+    # NOTE: these aren't actually initialized to "zeros" since the we'll apply a sigmoid which will shift this up right? 
     params = torch.nn.parameter.Parameter(
-        torch.zeros(sig.batch_size, channel.num_params).to(device)
+        torch.zeros(sig.batch_size, channel.num_params).to(device) 
     )
     params.requires_grad=True
     # the optimizer!
@@ -347,8 +349,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--input_audio", type=str, help="path to input audio file")
     parser.add_argument("--text", type=str, help="text prompt for the effect")
-    parser.add_argument("--output_folder", type=str, help="folder to save output audio to")
     parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
+    parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
+    parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
 
     args = parser.parse_args()
 
@@ -358,5 +361,4 @@ if __name__ == "__main__":
     text2fx(
         signal, args.text, channel,
         criterion=args.criterion, 
-        save_dir=args.output_folder
     )
