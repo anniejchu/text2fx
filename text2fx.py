@@ -285,7 +285,7 @@ def text2fx(
     embedding_target = msclap.get_text_embeddings([text]).detach()
     
     if criterion == "directional_loss":
-        audio_in_emb = msclap.preprocess_and_embed(sig)
+        audio_in_emb = msclap.preprocess_and_embed(sig.to(device)).detach()
         text_anchor_emb = msclap.get_text_embeddings(["a sound"]).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
@@ -341,56 +341,23 @@ def text2fx(
     return out_sig
 
 
-def test():
-
-    channel = Channel(
-        # Apply random EQ, Compression, and Gain to a signal
-        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
-        dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
-        dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
-        dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
-        
-        # Apply random Reverb and Distortion to a signal
-        # Distortion(sample_rate=SAMPLE_RATE),
-    )
-    example_files = load_audio_examples()
-    # Initialize our starting parameters
-    signal = AudioSignal(example_files[0])
-
-    save_dir = Path("experiments") / "test"
-
-    for criterion in ("standard", "cosine-sim", "directional_loss"):
-        for text_target in [
-            "this sounds like a telephone",
-            "this sounds like a robot", 
-            "this sounds like a cave",
-            "this sounds like bassy and dark",
-            "this sounds like underwater"
-        ]:
-            # Apply text2fx
-            signal_effected = text2fx(
-                signal, text_target, channel,
-                criterion=criterion, 
-                save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
-            )
-    
-
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
+    # test()
+    # import argparse
+    # parser = argparse.ArgumentParser()
 
-    parser.add_argument("--input_audio", type=str, help="path to input audio file")
-    parser.add_argument("--text", type=str, help="text prompt for the effect")
-    parser.add_argument("--output_folder", type=str, help="folder to save output audio to")
-    parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
+    # parser.add_argument("--input_audio", type=str, help="path to input audio file")
+    # parser.add_argument("--text", type=str, help="text prompt for the effect")
+    # parser.add_argument("--output_folder", type=str, help="folder to save output audio to")
+    # parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
 
-    channel = get_default_channel()
-    signal = AudioSignal(args.input_audio)
+    # channel = get_default_channel()
+    # signal = AudioSignal(args.input_audio)
 
-    text2fx(
-        signal, args.text, channel,
-        criterion=args.criterion, 
-        save_dir=args.output_folder
-    )
+    # text2fx(
+    #     signal, args.text, channel,
+    #     criterion=args.criterion, 
+    #     save_dir=args.output_folder
+    # )
