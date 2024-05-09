@@ -342,22 +342,21 @@ def text2fx(
 
 
 if __name__ == "__main__":
-    # test()
-    # import argparse
-    # parser = argparse.ArgumentParser()
+    import argparse
+    parser = argparse.ArgumentParser()
 
-    # parser.add_argument("--input_audio", type=str, help="path to input audio file")
-    # parser.add_argument("--text", type=str, help="text prompt for the effect")
-    # parser.add_argument("--output_folder", type=str, help="folder to save output audio to")
-    # parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
+    parser.add_argument("--input_audio", type=str, help="path to input audio file")
+    parser.add_argument("--text", type=str, help="text prompt for the effect")
+    parser.add_argument("--output_folder", type=str, help="folder to save output audio to")
+    parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
-    # channel = get_default_channel()
-    # signal = AudioSignal(args.input_audio)
+    channel = get_default_channel()
+    signal = AudioSignal(args.input_audio)
 
-    # text2fx(
-    #     signal, args.text, channel,
-    #     criterion=args.criterion, 
-    #     save_dir=args.output_folder
-    # )
+    text2fx(
+        signal, args.text, channel,
+        criterion=args.criterion, 
+        save_dir=args.output_folder
+    )
