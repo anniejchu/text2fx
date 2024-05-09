@@ -61,7 +61,6 @@ python app.py
 1. Run the following command to start the txt2fx command line interface:
 ```
 python text2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"\
-                 --output_folder output \
                  --text "this sound is dark, boomy and distored" \
                  --criterion "cosine-sim" \
                  --n_iters 500 \
