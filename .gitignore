@@ -1,6 +1,8 @@
 data
 data/*
 pretrained/*
+experiments/*
+runs/*
 
 **/..git/*
 __pycache__/
