@@ -146,20 +146,25 @@ class MSCLAPWrapper:
         return audio_time_series.unsqueeze(0).unsqueeze(0).float()
 
     def preprocess(self, signal: AudioSignal):
-        signal_resamp = self.resample(signal) #uses CLAP function on AudioSignal.samples
-        signal_resamp.to_mono()
-        signal_resamp.samples = self.audio_trim(
-            signal_resamp.samples, 
-            self.clap_model.args.duration, 
-            self.clap_model.args.sampling_rate
-        ) #bottleneck - only single sample
+        sig_resamp = []
+        for i in range(signal.shape[0]):
+            _sig = self.resample(signal[i]) #uses CLAP function on AudioSignal.samples
+            _sig.to_mono()
+            _sig.samples = self.audio_trim(
+                _sig.samples, 
+                self.clap_model.args.duration, 
+                self.clap_model.args.sampling_rate
+            ) #should work for batches, NOTE: might be good to vectorize
+            sig_resamp.append(_sig)
 
-        return signal_resamp
+        return AudioSignal.batch(sig_resamp)
 
+    #get_audio_embeddings from preprocessed AudioSignal (resampling, duration reworking)
     def embed(self, preprocessed_audio: AudioSignal): 
         preprocessed_audio = preprocessed_audio.reshape(preprocessed_audio.shape[0], preprocessed_audio.shape[2])
         return self.clap_model.clap.audio_encoder(preprocessed_audio)[0]
 
+    #get_audio_embeddings from raw AudioSignal
     def preprocess_and_embed(self, signal: AudioSignal):
         return self.embed(self.preprocess(signal).samples)
 
@@ -167,6 +172,7 @@ class MSCLAPWrapper:
         return self.clap_model.get_text_embeddings(texts)
 
 # just for saving our text prompts as filename safely!
+# for folder creation
 def slugify(value, allow_unicode=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
@@ -247,6 +253,7 @@ def text2fx(
     save_dir: str = None # figure out a save path automatically
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
+    # prevents loading the model everytime w/o needing to set it first as global variable
     if not hasattr(text2fx, "msclap"):
         msclap  = MSCLAPWrapper()
         setattr(text2fx, "msclap", msclap)
@@ -263,7 +270,7 @@ def text2fx(
     # create a writer for saving stuff to tensorboard
     writer_dir = save_dir / "logs"
     writer_dir.mkdir(exist_ok=True)
-    writer = SummaryWriter(writer_dir) 
+    writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
 
     # params!
     # NOTE: these aren't actually initialized to "zeros" since the we'll apply a sigmoid which will shift this up right? 
@@ -307,14 +314,13 @@ def text2fx(
         # their dot product will be high. We thus penalize a small dot product to try to
         # bring our audio vector "into alignment" with the text vector.
         if criterion == "directional_loss":
-            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb)
+            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).sum()
         elif criterion == "standard":
             loss = -(embedding_effected @ embedding_target.T).sum()
         elif criterion == "cosine-sim":
             loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).sum()
         else:
             raise ValueError(f"Criterion {criterion} not recognized")
-        
         if writer: 
             writer.add_scalar("loss", loss.item(), n)
 
@@ -329,7 +335,7 @@ def text2fx(
             # Save audio
             signal_effected.detach().cpu().write_audio_to_tb("effected", writer, n)
             if writer:
-                writer.add_audio("effected", signal_effected.samples, n, sample_rate=signal_effected.sample_rate)
+                writer.add_audio("effected", signal_effected.samples[0][0], n, sample_rate=signal_effected.sample_rate)
 
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
