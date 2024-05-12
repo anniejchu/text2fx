@@ -9,31 +9,11 @@ from text2fx import SAMPLE_RATE, Channel, load_audio_examples, get_default_chann
 from audiotools import AudioSignal
 import dasp_pytorch
 import datetime
+import re
 
 
 #AC remix: trying to log on tensorboard
-def test_text2fx_LOG():
-    channel = get_default_channel()
-    example_files = load_audio_examples()
-    signal = AudioSignal(example_files[0])
-
-
-    runs_dir = Path("runs")
-
-    today = datetime.datetime.now().strftime("%Y-%m-%d")  
-    today_dir = runs_dir / today
-    today_dir.parent.mkdir(parents=True, exist_ok=True)
-
-    for criterion in ("directional_loss", "cosine-sim"):
-        for text_target in ["this sounds like a telephone"]:
-            # Apply text2fx
-            signal_effected = text2fx.text2fx(
-                signal, text_target, channel,
-                criterion=criterion, 
-                save_dir=today_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
-            )
-
-def test_criterion_LOG():
+def test_criterion_LOG_old():
     channel = get_default_channel()
     example_files = load_audio_examples()
     signal = AudioSignal(example_files[0])
@@ -50,30 +30,177 @@ def test_criterion_LOG():
             signal_effected = text2fx.text2fx(
                 signal, text_target, channel,
                 criterion=criterion, 
+                #saving by criterion first
                 save_dir=today_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
             )
 
-def test_iterations_LOG():
+def testing123(textTargets):
+    """
+    testing locally different textTargets and criterion
+    default channel
+    """
+    prefix = 'this is the sound of '
+    y = [prefix + x for x in textTargets]
+    # print(y)
+
+    channel = get_default_channel()
+
+    example_files = load_audio_examples()
+    signal = AudioSignal(example_files[2])
+
+    save_dir = Path("experiments") / "test512"
+
+    for criterion in ("directional_loss", "cosine-sim"):
+        for text_target in y:
+            # Apply text2fx
+            signal_effected = text2fx.text2fx(
+                signal, text_target, channel,
+                criterion=criterion, 
+                # save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
+                save_dir = save_dir / text_target.replace(prefix, "").replace(" ", "_") / f"criterion-{criterion}"
+            )
+
+def test_FX_text_congruence(textTargets, sig_type='voice', local: bool=False):
+    """
+    Distortion effect, set parameter (corresponding to gain db) to 0 to start. 
+    Then prompt with textTargets = "distorted", "clean", "crisp", "degraded", etc.
+
+    Equalizer effect, set parameters corresponding to "gain" controls all to the same value (e.g. 0) to start. 
+    Then prompt with "sharp", "boomy", "warm", "tinny", etc.
+    """
+    prefix = 'this is the sound of '
+    y = [prefix + x for x in textTargets]
+
+    #testing just EQ
+    fx_name = 'EQ'
+    channel = Channel(
+        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
+        # # Distortion(sample_rate=SAMPLE_RATE),
+    )
+
+    example_files = load_audio_examples()
+    if sig_type == 'voice':
+        signal = AudioSignal(example_files[5])
+    elif sig_type == 'music':
+        signal = AudioSignal(example_files[2])
+    else:
+        raise ValueError(f"sig_type {sig_type} not recognized")
+
+    for criterion in ("cosine-sim",):
+        for text_target in y:
+            if not local:
+                print('TO TENSORBOARD')
+                runs_dir = Path("runs")
+                today = datetime.datetime.now().strftime("%Y-%m-%d")  
+                today_dir = runs_dir / today
+                today_dir.parent.mkdir(parents=True, exist_ok=True)
+                #where we'd adapt directory name
+                save_dir = today_dir / f"{fx_name}" / text_target.replace(prefix, "").replace(" ", "_") / f"{sig_type}" / f"criterion-{criterion}"
+                save_dir.parent.mkdir(parents=True, exist_ok=True)
+
+                existing_runs = [d for d in save_dir.parent.iterdir() if d.is_dir() and save_dir.name in d.name]
+                if len(existing_runs) == 0:
+                    run_dir = save_dir
+                else:
+                    # If existing runs, find the latest run and increment the number
+                    latest_run = sorted(existing_runs)[-1]  # Get the latest run directory
+                    match = re.search(r'-(\d+)$', latest_run.stem)  # Find the last digits in the name
+                    if match:
+                        run_num = int(match.group(1)) + 1
+                    else:
+                        run_num = 1  # No number found, start from 1
+                    run_dir = save_dir.parent / f"{save_dir.name}-{run_num}"
+                run_dir.mkdir(exist_ok=True, parents=True)
+            else:
+                print('LOCAL')
+                save_dir = Path("experiments") / "test512_congruence"
+                run_dir = save_dir / text_target.replace(prefix, "").replace(" ", "_") /f"criterion-{criterion}"
+            # Apply text2fx
+            signal_effected = text2fx.text2fx_params(
+                signal, text_target, channel,
+                criterion=criterion, 
+                save_dir = run_dir,
+                params_raw = True #makes sure that the starting initialization parameters are 0
+            )
+
+
+def test_LOG_BIG(local: bool = True):
     """
     text_target = this sounds like a _telephone_
     i_variable: criterion
-    n_iters = 1000 (see progression on tensorboard)
     audio_type = voice // example_file[5] - 'please call stella'
     """
+    prefix = 'this sounds like '
+    textTargets = ['a telephone', 'a church']
+    y = [prefix + x for x in textTargets]
     channel = get_default_channel()
     example_files = load_audio_examples()
     signal = AudioSignal(example_files[5])
 
+    for criterion in ("cosine-sim",):
+        for text_target in y:
+            if not local:
+                print('TO TENSORBOARD')
+                runs_dir = Path("runs")
+                today = datetime.datetime.now().strftime("%Y-%m-%d")  
+                today_dir = runs_dir / today
+                today_dir.parent.mkdir(parents=True, exist_ok=True)
+                #where we'd adapt directory name
+                save_dir = today_dir / text_target.replace(prefix, "").replace(" ", "_") / f"criterion-{criterion}"
+                save_dir.parent.mkdir(parents=True, exist_ok=True)
+
+                existing_runs = [d for d in save_dir.parent.iterdir() if d.is_dir() and save_dir.name in d.name]
+                if len(existing_runs) == 0:
+                    run_dir = save_dir
+                else:
+                    # If existing runs, find the latest run and increment the number
+                    latest_run = sorted(existing_runs)[-1]  # Get the latest run directory
+                    match = re.search(r'-(\d+)$', latest_run.stem)  # Find the last digits in the name
+                    if match:
+                        run_num = int(match.group(1)) + 1
+                    else:
+                        run_num = 1  # No number found, start from 1
+                    run_dir = save_dir.parent / f"{save_dir.name}-{run_num}"
+                run_dir.mkdir(exist_ok=True, parents=True)
+            else:
+                print('LOCAL')
+                save_dir = Path("experiments") / "test512_localtensorboardfiles"
+                run_dir = save_dir / text_target.replace(prefix, "").replace(" ", "_") /f"criterion-{criterion}"
+
+            # #step 2: Apply text2fx + log
+            signal_effected = text2fx.text2fx(
+                signal, text_target, channel,
+                criterion=criterion, 
+                n_iters=100,
+                save_dir=run_dir
+            )
+
+def test_criterion_LOG():
+    """
+    text_target = this sounds like a [_telephone_, etc, etc]
+    i_variable: criterion
+    n_iters = 1000 (see progression on tensorboard)
+    audio_type = voice // example_file[5] - 'please call stella'
+    """
+    prefix = 'this sounds like '
+    textTargets = ['a telephone', 'a church', 'underwater']
+    y = [prefix + x for x in textTargets]
+    channel = get_default_channel()
+    example_files = load_audio_examples()
+    signal = AudioSignal(example_files[5])
+
+    comment_dir = "varied_criterion_textTarget"
+
     runs_dir = Path("runs")
     today = datetime.datetime.now().strftime("%Y-%m-%d")  
-    today_dir = runs_dir / today
+    today_dir = runs_dir / today / comment_dir
     today_dir.parent.mkdir(parents=True, exist_ok=True)
 
     for criterion in ("directional_loss", "cosine-sim", "standard"):
-        for text_target in ["this sounds like a telephone"]:
+        for text_target in y:
             #step 1: checking dir paths for tensorboard logging
             #logging by DATE > TEXT_TARGET > CRITERION_NAME
-            save_dir = today_dir / text_target.replace("this sounds like ", "").replace(" ", "_") / f"criterion-{criterion}"
+            save_dir = today_dir / text_target.replace(prefix, "").replace(" ", "_") / f"criterion-{criterion}"
             save_dir.parent.mkdir(parents=True, exist_ok=True)
             existing_runs = [d for d in save_dir.parent.iterdir() if d.is_dir() and save_dir.name in d.name]
             if len(existing_runs) == 0:
@@ -148,5 +275,9 @@ def test_text2fx_batch():
             )
 
 if __name__ == "__main__":
-    test_iterations_LOG()
+
+    # testing123(['underwater', 'a telephone', 'a explosion'])
+    test_FX_text_congruence(["distorted", "clean", "soothing" , "heavy", "mellow"])
+    # test_LOG_BIG(local=False)
+    # test_criterion_LOG()
     # test_text2fx_batch()

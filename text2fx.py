@@ -342,6 +342,110 @@ def text2fx(
     
     return out_sig
 
+def text2fx_params(
+    sig: AudioSignal, 
+    text: str,   
+    channel: Channel,
+    device: str = "cuda" if torch.cuda.is_available() else "cpu", 
+    log_audio_every_n: int = 25, 
+    lr: float = 1e-2, 
+    n_iters: int = 600,
+    criterion: str = "standard", 
+    save_dir: str = None, # figure out a save path automatically
+    params_raw: bool = False
+):
+    # ah yes, the max morrison trick of hiding global variables as function members
+    # prevents loading the model everytime w/o needing to set it first as global variable
+    if not hasattr(text2fx, "msclap"):
+        msclap  = MSCLAPWrapper()
+        setattr(text2fx, "msclap", msclap)
+    else: 
+        msclap = text2fx.msclap
+
+    # a save dir for our goods
+    if save_dir is None:
+        save_dir = create_save_dir(text, sig, RUNS_DIR)
+    else:
+        save_dir = Path(save_dir)
+        save_dir.mkdir(exist_ok=True, parents=True)
+
+    # create a writer for saving stuff to tensorboard
+    writer_dir = save_dir / "logs"
+    writer_dir.mkdir(exist_ok=True)
+    writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
+
+    # params!
+    params = torch.nn.parameter.Parameter(
+            torch.zeros(sig.batch_size, channel.num_params).to(device) 
+        )
+
+    params.requires_grad=True
+    # the optimizer!
+    optimizer = torch.optim.Adam([params], lr=lr)
+
+    # log what our initial effect sounds like (w/ random parameters applied)
+    if params_raw == True:
+        print('applying raw params - should be all zeros')
+        init_sig = channel(sig.clone().to(device), params)
+    elif params_raw == False:
+        init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
+
+    if writer:
+        writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
+        writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
+
+    sig.clone().cpu().write(save_dir / 'input.wav')
+
+    embedding_target = msclap.get_text_embeddings([text]).detach()
+    
+    if criterion == "directional_loss":
+        audio_in_emb = msclap.preprocess_and_embed(sig.to(device)).detach()
+        text_anchor_emb = msclap.get_text_embeddings(["a sound"]).detach()
+
+    # Optimize our parameters by matching effected audio against the target audio
+    pbar = tqdm(range(n_iters), total=n_iters)
+    for n in pbar:
+        
+        # Apply effect with out estimated parameters
+        signal_effected = channel(sig.to(device), torch.sigmoid(params.to(device)))
+
+        # Get CLAP embedding for effected audio
+        embedding_effected = msclap.preprocess_and_embed(signal_effected) #.get_audio_embeddings takes in preprocessed audio
+
+        # loss
+        if criterion == "directional_loss":
+            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).sum()
+        elif criterion == "standard": #is neg dot product loss aims to minimize the dot prod b/w dissimilar items, no direction intake
+            loss = -(embedding_effected @ embedding_target.T).sum()
+        elif criterion == "cosine-sim": # cosine_sim loss aims to maximize the cosine similarity between similar items, normalized
+            loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).sum()
+        else:
+            raise ValueError(f"Criterion {criterion} not recognized")
+        if writer: 
+            writer.add_scalar("loss", loss.item(), n)
+
+        # Optimize
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        pbar.set_description(f"step: {n+1}/{n_iters}, loss: {loss.item():.3f}")
+
+        if n % log_audio_every_n == 0:
+            # Save audio
+            signal_effected.detach().cpu().write_audio_to_tb("effected", writer, n)
+            if writer:
+                writer.add_audio("effected", signal_effected.samples[0][0], n, sample_rate=signal_effected.sample_rate)
+
+    # Play final signal with optimized effects parameters
+    out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
+    out_sig.write(save_dir / "final.wav")
+
+    if writer:
+        writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
+        writer.close()
+    
+    return out_sig
 
 if __name__ == "__main__":
     import argparse
