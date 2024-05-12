@@ -72,6 +72,7 @@ def test_iterations_LOG():
     for criterion in ("directional_loss", "cosine-sim", "standard"):
         for text_target in ["this sounds like a telephone"]:
             #step 1: checking dir paths for tensorboard logging
+            #logging by DATE > TEXT_TARGET > CRITERION_NAME
             save_dir = today_dir / text_target.replace("this sounds like ", "").replace(" ", "_") / f"criterion-{criterion}"
             save_dir.parent.mkdir(parents=True, exist_ok=True)
             existing_runs = [d for d in save_dir.parent.iterdir() if d.is_dir() and save_dir.name in d.name]
