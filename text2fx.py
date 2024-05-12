@@ -68,7 +68,7 @@ class Channel(torch.nn.Module):
             modules[i].sample_rate = self.sample_rate
         self.modules = modules
 
-    @property #AC what does this do? -- hacky thing decorator/annotator, concrete attribute, this is a getter
+    @property #hacky thing decorator/annotator, concrete attribute, this is a getter
     def num_params(self):
         return sum([m.num_params for m in self.modules])
 
@@ -129,7 +129,9 @@ class MSCLAPWrapper:
 
     def audio_trim(self, audio_time_series, audio_duration, sample_rate):
         audio_time_series = audio_time_series.squeeze(0).squeeze(0)
-        if audio_duration*sample_rate >= audio_time_series.shape[0]: #if audio duration is shorter than 7 seconds, repeat samples
+
+        #if audio duration is shorter than 7 seconds, repeat samples
+        if audio_duration*sample_rate >= audio_time_series.shape[0]: 
             repeat_factor = int(np.ceil((audio_duration*sample_rate) /
                                         audio_time_series.shape[0]))
             # Repeat audio_time_series by repeat_factor to match audio_duration
@@ -137,8 +139,8 @@ class MSCLAPWrapper:
             # remove excess part of audio_time_series
             audio_time_series = audio_time_series[0:audio_duration*sample_rate]
         else:
-            # audio_time_series is longer than predefined audio duration (7s),
-            # so audio_time_series is trimmed
+        # audio_time_series is longer than predefined audio duration (7s),
+        # so audio_time_series is trimmed
             start_index = random.randrange(
                 audio_time_series.shape[0] - audio_duration*sample_rate)
             audio_time_series = audio_time_series[start_index:start_index +
@@ -160,13 +162,13 @@ class MSCLAPWrapper:
         return AudioSignal.batch(sig_resamp)
 
     #get_audio_embeddings from preprocessed AudioSignal (resampling, duration reworking)
-    def embed(self, preprocessed_audio: AudioSignal): 
+    def get_audio_embed(self, preprocessed_audio: AudioSignal): 
         preprocessed_audio = preprocessed_audio.reshape(preprocessed_audio.shape[0], preprocessed_audio.shape[2])
         return self.clap_model.clap.audio_encoder(preprocessed_audio)[0]
 
-    #get_audio_embeddings from raw AudioSignal
+    #preprocess raw AudioSignal + get_audio_embeddings from that
     def preprocess_and_embed(self, signal: AudioSignal):
-        return self.embed(self.preprocess(signal).samples)
+        return self.get_audio_embed(self.preprocess(signal).samples)
 
     def get_text_embeddings(self, texts):
         return self.clap_model.get_text_embeddings(texts)
@@ -281,11 +283,9 @@ def text2fx(
     # the optimizer!
     optimizer = torch.optim.Adam([params], lr=lr)
 
-    # log what our initial effect sounds like
+    # log what our initial effect sounds like (w/ random parameters applied)
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
     if writer:
-        # sig.detach().cpu().write_audio_to_tb("input", writer, 0)
-        # init_sig.detach().cpu().write_audio_to_tb("effected", writer, 0)
         writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
 
@@ -302,22 +302,17 @@ def text2fx(
     for n in pbar:
         
         # Apply effect with out estimated parameters
-        # signal_effected = channel(signal, torch.sigmoid(params))
         signal_effected = channel(sig.to(device), torch.sigmoid(params.to(device)))
 
         # Get CLAP embedding for effected audio
         embedding_effected = msclap.preprocess_and_embed(signal_effected) #.get_audio_embeddings takes in preprocessed audio
 
-        # Compute distance between our effected audio embedding vector and the target text 
-        # embedding vector. We use cosine distance (essentially the negative dot product
-        # between vectors). When two vectors are "aligned" (pointing in the same direction), 
-        # their dot product will be high. We thus penalize a small dot product to try to
-        # bring our audio vector "into alignment" with the text vector.
+        # loss
         if criterion == "directional_loss":
             loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).sum()
-        elif criterion == "standard":
+        elif criterion == "standard": #is neg dot product loss aims to minimize the dot prod b/w dissimilar items, no direction intake
             loss = -(embedding_effected @ embedding_target.T).sum()
-        elif criterion == "cosine-sim":
+        elif criterion == "cosine-sim": # cosine_sim loss aims to maximize the cosine similarity between similar items, normalized
             loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).sum()
         else:
             raise ValueError(f"Criterion {criterion} not recognized")
@@ -342,7 +337,6 @@ def text2fx(
     out_sig.write(save_dir / "final.wav")
 
     if writer:
-        # out_sig.write_audio_to_tb("final", writer, n_iters)
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
     

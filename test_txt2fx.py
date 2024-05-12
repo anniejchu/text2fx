@@ -9,6 +9,31 @@ from text2fx import SAMPLE_RATE, Channel, load_audio_examples, get_default_chann
 from audiotools import AudioSignal
 import dasp_pytorch
 
+#AC remix: trying to log on tensorboard
+from text2fx import SAMPLE_RATE, Channel, load_audio_examples, get_default_channel, create_save_dir #MSCLAPWrapper
+from torch.utils.tensorboard import SummaryWriter
+
+from text2fx import text2fx
+from torch.utils.tensorboard import SummaryWriter
+
+def test_text2fx_LOG():
+    channel = get_default_channel()
+    example_files = load_audio_examples()
+    signal = AudioSignal(example_files[0])
+
+    # save_dir = Path("experiments") / "test"
+
+    for criterion in ("directional_loss", "cosine-sim"):
+        for text_target in ["this sounds like a telephone"]:
+            # Apply text2fx
+            text2fx(
+                signal, text_target, channel,
+                criterion=criterion,
+                # writer_dir=tensorboard_writer.log_dir,  # Pass the log directory to text2fx
+                # save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
+            )
+
+
 
 def test_text2fx():
     channel = get_default_channel()
@@ -24,7 +49,7 @@ def test_text2fx():
     # )
     example_files = load_audio_examples()
     # Initialize our starting parameters
-    signal = AudioSignal(example_files[0])
+    signal = AudioSignal(example_files[2])
 
     save_dir = Path("experiments") / "test"
 
@@ -38,6 +63,7 @@ def test_text2fx():
                 criterion=criterion, 
                 save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
             )
+
 
 def random_signal(duration):
     example_files = load_audio_examples()
@@ -64,5 +90,5 @@ def test_text2fx_batch():
             )
 
 if __name__ == "__main__":
-    # test_text2fx()
-    test_text2fx_batch()
+    test_text2fx_LOG()
+    # test_text2fx_batch()
