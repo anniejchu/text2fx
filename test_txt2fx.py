@@ -270,7 +270,7 @@ def test_iters(textTargets, num_experiments, sig_type='voice', title: str= '513_
 
 if __name__ == "__main__":
     wordlist = ['cold', 'youthful', 'relaxed', 'energetic', 'muddled'] #from audealize
-    test_iters(wordlist, 5, title='vary_init_param_seeds')
+    test_iters(wordlist, 5, title='vary_init_param_seeds', sig_type='music')
 
     # testing123(['underwater', 'a telephone', 'a explosion'])
     # for t in ['music', 'voice']:
