@@ -5,36 +5,13 @@ from pathlib import Path
 import random
 
 import text2fx
-from text2fx import SAMPLE_RATE, Channel, load_audio_examples, get_default_channel, slugify
+from text2fx import SAMPLE_RATE, Channel, load_audio_examples, get_default_channel, slugify, Distortion
 from audiotools import AudioSignal
 import dasp_pytorch
 import datetime
 import re
 
-
-#AC remix: trying to log on tensorboard
-def test_criterion_LOG_old():
-    channel = get_default_channel()
-    example_files = load_audio_examples()
-    signal = AudioSignal(example_files[0])
-
-    runs_dir = Path("runs")
-
-    today = datetime.datetime.now().strftime("%Y-%m-%d")  
-    today_dir = runs_dir / today
-    today_dir.parent.mkdir(parents=True, exist_ok=True)
-
-    for criterion in ("directional_loss", "cosine-sim"):
-        for text_target in ["this sounds like a telephone"]:
-            # Apply text2fx
-            signal_effected = text2fx.text2fx(
-                signal, text_target, channel,
-                criterion=criterion, 
-                #saving by criterion first
-                save_dir=today_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
-            )
-
-def testing123(textTargets):
+def test_TextTargets(textTargets):
     """
     testing locally different textTargets and criterion
     default channel
@@ -56,26 +33,26 @@ def testing123(textTargets):
             signal_effected = text2fx.text2fx(
                 signal, text_target, channel,
                 criterion=criterion, 
-                # save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
                 save_dir = save_dir / text_target.replace(prefix, "").replace(" ", "_") / f"criterion-{criterion}"
             )
 
-def test_FX_text_congruence(textTargets, sig_type='voice', local: bool=False):
+def test_FX_text_congruence(textTargets, sig_type='voice'):
     """
     Distortion effect, set parameter (corresponding to gain db) to 0 to start. 
     Then prompt with textTargets = "distorted", "clean", "crisp", "degraded", etc.
 
     Equalizer effect, set parameters corresponding to "gain" controls all to the same value (e.g. 0) to start. 
     Then prompt with "sharp", "boomy", "warm", "tinny", etc.
+
+    Pulling from: https://interactiveaudiolab.github.io/assets/papers/zheng_seetharaman_pardo_acmmm.pdf
     """
     prefix = 'this is the sound of '
     y = [prefix + x for x in textTargets]
 
     #testing just EQ
-    fx_name = 'EQ'
+    fx_name = 'COMPRESSION'
     channel = Channel(
-        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
-        # # Distortion(sample_rate=SAMPLE_RATE),
+        dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
     )
 
     example_files = load_audio_examples()
@@ -86,35 +63,11 @@ def test_FX_text_congruence(textTargets, sig_type='voice', local: bool=False):
     else:
         raise ValueError(f"sig_type {sig_type} not recognized")
 
+    save_dir = Path("experiments") / "test512_congruence"
+
     for criterion in ("cosine-sim",):
         for text_target in y:
-            if not local:
-                print('TO TENSORBOARD')
-                runs_dir = Path("runs")
-                today = datetime.datetime.now().strftime("%Y-%m-%d")  
-                today_dir = runs_dir / today
-                today_dir.parent.mkdir(parents=True, exist_ok=True)
-                #where we'd adapt directory name
-                save_dir = today_dir / f"{fx_name}" / text_target.replace(prefix, "").replace(" ", "_") / f"{sig_type}" / f"criterion-{criterion}"
-                save_dir.parent.mkdir(parents=True, exist_ok=True)
-
-                existing_runs = [d for d in save_dir.parent.iterdir() if d.is_dir() and save_dir.name in d.name]
-                if len(existing_runs) == 0:
-                    run_dir = save_dir
-                else:
-                    # If existing runs, find the latest run and increment the number
-                    latest_run = sorted(existing_runs)[-1]  # Get the latest run directory
-                    match = re.search(r'-(\d+)$', latest_run.stem)  # Find the last digits in the name
-                    if match:
-                        run_num = int(match.group(1)) + 1
-                    else:
-                        run_num = 1  # No number found, start from 1
-                    run_dir = save_dir.parent / f"{save_dir.name}-{run_num}"
-                run_dir.mkdir(exist_ok=True, parents=True)
-            else:
-                print('LOCAL')
-                save_dir = Path("experiments") / "test512_congruence"
-                run_dir = save_dir / text_target.replace(prefix, "").replace(" ", "_") /f"criterion-{criterion}"
+            run_dir = save_dir / f"{fx_name}" / f"{sig_type}" / text_target.replace(prefix, "").replace(" ", "_") /f"criterion-{criterion}"
             # Apply text2fx
             signal_effected = text2fx.text2fx_params(
                 signal, text_target, channel,
@@ -171,7 +124,7 @@ def test_LOG_BIG(local: bool = True):
             signal_effected = text2fx.text2fx(
                 signal, text_target, channel,
                 criterion=criterion, 
-                n_iters=100,
+                n_iters=1000,
                 save_dir=run_dir
             )
 
@@ -277,7 +230,9 @@ def test_text2fx_batch():
 if __name__ == "__main__":
 
     # testing123(['underwater', 'a telephone', 'a explosion'])
-    test_FX_text_congruence(["distorted", "clean", "soothing" , "heavy", "mellow"])
+    for t in ['music', 'voice']:
+        test_FX_text_congruence(["full", "sharp", "subtle", "fuzzy"], sig_type=t)
+
     # test_LOG_BIG(local=False)
     # test_criterion_LOG()
     # test_text2fx_batch()
