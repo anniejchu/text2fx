@@ -18,6 +18,15 @@ from msclap import CLAP
 
 import matplotlib.pyplot as plt
 
+"""
+EX CLI USAGE
+python text2fx.py --input_audio 5\
+                 --text "this sound is dark and roomy" \
+                 --criterion "cosine-sim" \
+                 --n_iters 200 \
+                 --lr 0.01 
+"""
+
 PROJECT_DIR = Path(__file__).parent
 ASSETS_DIR = PROJECT_DIR / "assets"
 PRETRAINED_DIR = PROJECT_DIR / "pretrained"
@@ -191,6 +200,32 @@ def slugify(value, allow_unicode=False):
     value = re.sub(r'[^\w\s-]', '', value.lower())
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
+# def create_save_dir(text, sig, runs_dir):
+#     """ 
+#     create a save folder for our current run.  
+#     """
+#     # lets make a runs dir
+#     # make a subfolder under runs with today's date in YYYY-MM-DAY format
+#     today = datetime.datetime.now().strftime("%Y-%m-%d")
+#     # run name should be text prompt + a number if there are multiple runs with the same prompt
+#     run_name = f"{slugify(text)}"    
+#     today_dir = runs_dir / today
+#     today_dir.parent.mkdir(parents=True, exist_ok=True)
+
+#     # see if we have any dirs in there with the same name
+#     existing_runs = [d for d in today_dir.parent.iterdir() if d.is_dir() and run_name in d.stem]
+
+#     if len(existing_runs) == 0:
+#         save_dir = today_dir / f"{run_name}-001"
+#     else:
+#         latest_run = sorted(existing_runs, key=lambda x: x.split('-')[-1])[-1]
+#         run_num = int(latest_run.split('-')[-1]) + 1
+#         save_dir.stem = today_dir / f"{run_name}-{run_num}"
+
+#     save_dir.mkdir(exist_ok=True, parents=True)
+#     return save_dir
+
+#testing
 def create_save_dir(text, sig, runs_dir):
     """ 
     create a save folder for our current run.  
@@ -204,14 +239,17 @@ def create_save_dir(text, sig, runs_dir):
     today_dir.parent.mkdir(parents=True, exist_ok=True)
 
     # see if we have any dirs in there with the same name
-    existing_runs = [d for d in today_dir.parent.iterdir() if d.is_dir() and run_name in d.stem]
+    # existing_runs = [d for d in today_dir.parent.iterdir() if d.is_dir() and run_name in d.stem]
+    existing_runs = [d for d in today_dir.iterdir() if d.is_dir() and run_name in d.stem]
 
     if len(existing_runs) == 0:
+        print('new query)')
         save_dir = today_dir / f"{run_name}-001"
     else:
-        latest_run = sorted(existing_runs, key=lambda x: x.split('-')[-1])[-1]
-        run_num = int(latest_run.split('-')[-1]) + 1
-        save_dir.stem = today_dir / f"{run_name}-{run_num}"
+        print('follow up queries)')
+        latest_run = sorted(existing_runs, key=lambda x: int(x.stem.split('-')[-1]))[-1]
+        run_num = int(latest_run.stem.split('-')[-1]) + 1
+        save_dir = today_dir / f"{run_name}-{run_num:03d}"
 
     save_dir.mkdir(exist_ok=True, parents=True)
     return save_dir
@@ -233,7 +271,7 @@ def clip_directional_loss(
 
 def get_default_channel():
     return Channel(
-        # Apply random EQ, Compression, and Gain to a signal
+        # Apply random EQ > Compression > Gain > Reverb to a signal
         dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
         dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
         dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
@@ -459,7 +497,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--input_audio", type=str, help="path to input audio file")
+    parser.add_argument("--input_audio", type=int, default=5, help="index of example audio file")
+    # parser.add_argument("--input_audio", type=str, help="path to input audio file")
     parser.add_argument("--text", type=str, help="text prompt for the effect")
     parser.add_argument("--criterion", type=str, default="standard", help="criterion to use for optimization")
     parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
@@ -468,7 +507,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     channel = get_default_channel()
-    signal = AudioSignal(args.input_audio)
+    example_files = load_audio_examples()
+    # signal = AudioSignal(example_files[2])
+    signal = AudioSignal(example_files[args.input_audio])
+    # signal = AudioSignal(args.input_audio)
 
     # text2fx(
     #     signal, args.text, channel,
@@ -477,7 +519,9 @@ if __name__ == "__main__":
     text2fx_params(
         signal, args.text, channel,
         criterion=args.criterion, 
-        params_raw = False,
-        params_set = torch.randn(signal.batch_size, channel.num_params)
-    )
+        n_iters=args.n_iters, 
+        lr=args.lr, 
 
+        params_raw = False,
+        # params_set = torch.randn(signal.batch_size, channel.num_params)
+    )
