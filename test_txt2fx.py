@@ -10,6 +10,7 @@ from audiotools import AudioSignal
 import dasp_pytorch
 import datetime
 import re
+import torch
 
 def test_TextTargets(textTargets):
     """
@@ -69,7 +70,7 @@ def test_FX_text_congruence(textTargets, sig_type='voice'):
         for text_target in y:
             run_dir = save_dir / f"{fx_name}" / f"{sig_type}" / text_target.replace(prefix, "").replace(" ", "_") /f"criterion-{criterion}"
             # Apply text2fx
-            signal_effected = text2fx.text2fx_params(
+            signal_effected = text2fx.text2fx_params( #using the text2fx_params version
                 signal, text_target, channel,
                 criterion=criterion, 
                 save_dir = run_dir,
@@ -227,11 +228,53 @@ def test_text2fx_batch():
                 save_dir=save_dir / f"criterion-{criterion}" / text_target.replace("this sounds like ", "").replace(" ", "_")
             )
 
+
+
+def test_iters(textTargets, num_experiments, sig_type='voice', title: str= '513_test'):
+    """ trying to make a helper function"""
+    prefix = 'this is the sound of '
+    y = [prefix + x for x in textTargets]
+
+    #testing just EQ
+    fx_name = 'EQ+REVERB'
+    channel = Channel(
+        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
+        dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
+    )
+    example_files = load_audio_examples()
+    if sig_type == 'voice':
+        signal = AudioSignal(example_files[5])
+    elif sig_type == 'music':
+        signal = AudioSignal(example_files[2])
+    else:
+        raise ValueError(f"sig_type {sig_type} not recognized")
+
+    save_dir = Path("experiments") / title
+
+    for criterion in ("cosine-sim",):
+        for text_target in y:
+            for i in range(num_experiments):
+                torch.manual_seed(i)  # Change 'i' to the seed you want to use
+                params_set = torch.randn(signal.batch_size, channel.num_params)
+
+                run_dir = save_dir / f"{criterion}" / f"{sig_type}" / text_target.replace(prefix, "").replace(" ", "_") /f"seed-{i}"
+                # Apply text2fx
+                signal_effected = text2fx.text2fx_params( #using the text2fx_params version
+                    signal, text_target, channel,
+                    criterion=criterion, 
+                    save_dir = run_dir,
+                    params_raw = False, #makes sure that the starting initialization parameters are put thru sigmoid
+                    params_set = params_set
+                )
+
+
 if __name__ == "__main__":
+    wordlist = ['cold', 'youthful', 'relaxed', 'energetic', 'muddled'] #from audealize
+    test_iters(wordlist, 5, title='vary_init_param_seeds')
 
     # testing123(['underwater', 'a telephone', 'a explosion'])
-    for t in ['music', 'voice']:
-        test_FX_text_congruence(["full", "sharp", "subtle", "fuzzy"], sig_type=t)
+    # for t in ['music', 'voice']:
+    #     test_FX_text_congruence(["full", "sharp", "subtle", "fuzzy"], sig_type=t)
 
     # test_LOG_BIG(local=False)
     # test_criterion_LOG()

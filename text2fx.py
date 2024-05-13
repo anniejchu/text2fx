@@ -352,7 +352,8 @@ def text2fx_params(
     n_iters: int = 600,
     criterion: str = "standard", 
     save_dir: str = None, # figure out a save path automatically
-    params_raw: bool = False
+    params_raw: bool = False,
+    params_set: torch.Tensor = None
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     # prevents loading the model everytime w/o needing to set it first as global variable
@@ -375,19 +376,26 @@ def text2fx_params(
     writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
 
     # params!
-    params = torch.nn.parameter.Parameter(
-            torch.zeros(sig.batch_size, channel.num_params).to(device) 
-        )
+    if params_set is None:
+        print('params are set to 0')
+        params = torch.nn.parameter.Parameter(
+                torch.zeros(sig.batch_size, channel.num_params).to(device) 
+            )
+    else:
+        print('applying user defined set of params')
+        # params_rand = torch.randn(signal.batch_size, channel.num_params)
+        params = torch.nn.parameter.Parameter(params_set.to(device))
 
     params.requires_grad=True
-    # the optimizer!
-    optimizer = torch.optim.Adam([params], lr=lr)
+    optimizer = torch.optim.Adam([params], lr=lr) #the optimizer
 
     # log what our initial effect sounds like (w/ random parameters applied)
     if params_raw == True:
-        print('applying raw params - should be all zeros')
+        print('applying raw params / no sigmoid - should be all zeros')
         init_sig = channel(sig.clone().to(device), params)
-    elif params_raw == False:
+    else:
+    # elif params_raw == False:
+        print('applying sigmoid-ified params')
         init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
 
     if writer:
@@ -462,7 +470,14 @@ if __name__ == "__main__":
     channel = get_default_channel()
     signal = AudioSignal(args.input_audio)
 
-    text2fx(
+    # text2fx(
+    #     signal, args.text, channel,
+    #     criterion=args.criterion, 
+    # )
+    text2fx_params(
         signal, args.text, channel,
         criterion=args.criterion, 
+        params_raw = False,
+        params_set = torch.randn(signal.batch_size, channel.num_params)
     )
+
