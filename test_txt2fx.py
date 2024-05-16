@@ -267,10 +267,37 @@ def test_iters(textTargets, num_experiments, sig_type='voice', title: str= '513_
                     params_set = params_set
                 )
 
+def test_text2fx_515(textTargets):
+    prefix = 'this sound is '
+    y = [prefix + x for x in textTargets]
+    channel = Channel(
+        # Apply random EQ, Compression, and Gain to a signal
+        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
+    )
+    # example_files = load_audio_examples()
+    # signal = AudioSignal(example_files[5])
+
+    audio_file = "assets/speech_examples/VCTK_p225_001_mic1.flac"
+    signal = AudioSignal(audio_file)
+    # Initialize our starting parameters
+
+    save_dir = Path("experiments") / "audealize_comp" / "speech" / "comparatives" 
+    for criterion in ("cosine-sim",):
+        for text_target in y:
+            # Apply text2fx
+            signal_effected = text2fx.text2fx(
+                signal, text_target, channel,
+                criterion=criterion, 
+                # save_dir = save_dir / text_target
+                save_dir=save_dir / text_target.replace("this sounds like ", "").replace(" ", "_")
+            )
+
 
 if __name__ == "__main__":
-    wordlist = ['cold', 'youthful', 'relaxed', 'energetic', 'muddled'] #from audealize
-    test_iters(wordlist, 5, title='vary_init_param_seeds', sig_type='music')
+    top10_eq = ["warmer", "colder", "softer", "louder", "happier", "brighter", "more soothing", "harsher", "heavier", "cooler"]
+    test_text2fx_515(top10_eq)
+    # wordlist = ['cold', 'youthful', 'relaxed', 'energetic', 'muddled'] #from audealize
+    # test_iters(wordlist, 5, title='vary_init_param_seeds', sig_type='music')
 
     # testing123(['underwater', 'a telephone', 'a explosion'])
     # for t in ['music', 'voice']:
