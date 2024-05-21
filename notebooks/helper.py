@@ -17,6 +17,7 @@ from transformers import BertForMaskedLM
 
 from scipy import signal
 import matplotlib.pyplot as plt
+# from einops import rearrange
 
 def load_examples(dir_path):
     exts = ["mp3", "wav", "flac"]
@@ -213,3 +214,34 @@ def compare_loss_anyfiles(file_baseline, file_compare, loss_funct=auraloss.freq.
     loss = loss_funct(baselineSig_samples, outSig_samples)
     
     return loss
+
+
+# def TESTdasp_apply_multiple_filters_file(file_name, filters, Q=4.31):
+#     """
+#     file(input signal) = MONO ONLY, torch tensor of samples, if audiosignal, set to AudioSignal.samples 
+#                         shape is (bs, n_channels, signals)
+#                         ex torch.Size([1, 1, 451714])
+#     filters = list of (frequency, gain_db) pairs
+#     fs = should be fs of x
+#     returns filtered signal as (bs, n_channels, signals)
+#     """
+#     audio = AudioSignal(file_name)
+#     print(audio)
+#     x = audio.samples
+#     fs = audio.sample_rate
+#     filtered_signal = x.clone()  # Make a copy of the original signal
+
+#     # combine batch and channel dims
+#     # filtered_signal = rearrange(filtered_signal, "b c t -> (b c) 1 t") 
+#     b,c,t = filtered_signal.samples.shape
+#     filtered_signal.= filtered_signal
+
+#     f_resp = []
+#     Q = torch.tensor(Q)
+#     for f0, gain_db in filters:
+#         b, a = dasp_pytorch.signal.biquad(gain_db*5, f0, Q, fs, 'peaking')         # Design peak filter
+#         filtered_signal = dasp_pytorch.signal.lfilter_via_fsm(filtered_signal, b, a)
+
+#     filtered_signal.samples = rearrange(filtered_signal.samples, "(b c) 1 t -> b c t") 
+    
+#     return filtered_signal, fs

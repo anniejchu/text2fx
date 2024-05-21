@@ -277,11 +277,11 @@ def test_text2fx_515(textTargets):
     # example_files = load_audio_examples()
     # signal = AudioSignal(example_files[5])
 
-    audio_file = "assets/speech_examples/VCTK_p225_001_mic1.flac"
+    audio_file = "/home/annie/research/text2fx/assets/audealize_examples/piano.wav"
     signal = AudioSignal(audio_file)
     # Initialize our starting parameters
 
-    save_dir = Path("experiments") / "audealize_comp" / "speech" / "comparatives" 
+    save_dir = Path("experiments") / "audealize_comp" / "ms_clap" / "piano" 
     for criterion in ("cosine-sim",):
         for text_target in y:
             # Apply text2fx
@@ -294,7 +294,7 @@ def test_text2fx_515(textTargets):
 
 
 if __name__ == "__main__":
-    top10_eq = ["warmer", "colder", "softer", "louder", "happier", "brighter", "more soothing", "harsher", "heavier", "cooler"]
+    top10_eq = ["warm", "cold", "soft", "loud", "happy", "bright", "soothing", "harsh", "heavy", "cool"]
     test_text2fx_515(top10_eq)
     # wordlist = ['cold', 'youthful', 'relaxed', 'energetic', 'muddled'] #from audealize
     # test_iters(wordlist, 5, title='vary_init_param_seeds', sig_type='music')
