@@ -1,17 +1,11 @@
 import os
 from pathlib import Path
-import requests
 from tqdm import tqdm
 from typing import Union, List
 
-import math
 import torch
 import numpy as np
-import audiotools
-import dasp_pytorch
-import auraloss
 import laion_clap
-import transformers
 from audiotools import AudioSignal
 
 from transformers import BertForMaskedLM
@@ -98,7 +92,6 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
 
         text_padded = text + ["<null>"]         # Account for known batch_size==1 issue
 
-        
         return self.model.get_text_embedding(text_padded, use_tensor=True)[:-1]
 
     
