@@ -118,12 +118,10 @@ def dasp_apply_EQ_samples(x, fs, filters, Q=4.31):
 
 def dasp_apply_EQ_file(file_name, filters, Q=4.31):
     """
-    file(input signal) = MONO ONLY, torch tensor of samples, if audiosignal, set to AudioSignal.samples 
-                        shape is (bs, n_channels, signals)
+    file(input signal) = mono or stereo (bs, n_channels, signals)
                         ex torch.Size([1, 1, 451714])
     filters = list of (frequency, gain_db) pairs
-    fs = should be fs of x
-    returns filtered signal as (bs, n_channels, signals)
+    returns filtered signal as (bs, n_channels, signals), fs
     """
     audio = AudioSignal(file_name)
     x = audio.samples
