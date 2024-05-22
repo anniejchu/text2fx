@@ -178,11 +178,11 @@ def convert_to_tensors(converted_settings):
 
 
 def compare_loss_anyfiles(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
-    baselineSig = AudioSignal(file_baseline)
-    outSig = AudioSignal(file_compare)
+    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).normalize(-24)
+    outSig = AudioSignal(file_compare).to_mono().resample(44100).normalize(-24)
 
-    baselineSig_samples = baselineSig.to_mono().samples
-    outSig_samples = outSig.to_mono().samples
+    baselineSig_samples = baselineSig.samples
+    outSig_samples = outSig.samples
 
     loss = loss_funct(baselineSig_samples, outSig_samples)
     
