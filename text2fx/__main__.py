@@ -1,11 +1,7 @@
 from pathlib import Path
 from tqdm import tqdm
-import datetime
-import unicodedata
-import re
 
 import torch
-import torchaudio.transforms as T
 import numpy as np
 import audiotools as at
 import dasp_pytorch
@@ -16,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from msclap import CLAP
 
-from text2fx.core import SAMPLE_RATE, Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, DEVICE, create_save_dir, RUNS_DIR
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, DEVICE, create_save_dir, RUNS_DIR
 
 import matplotlib.pyplot as plt
 
@@ -28,7 +24,8 @@ python text2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"
                  --n_iters 600 \
                  --lr 0.01 
 """
-device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+SAMPLE_RATE = 44100
+device = DEVICE #torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
 
 def get_model(model_choice: str):
@@ -60,13 +57,11 @@ def clip_directional_loss(
 
 def get_default_channel():
     return Channel(
-        # Apply random EQ > Compression > Gain > Reverb to a signal
         dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
         dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
         dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
         dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
         
-        # Apply random Reverb and Distortion to a signal
         # Distortion(sample_rate=SAMPLE_RATE),
     )
 
@@ -122,7 +117,7 @@ def text2fx(
     embedding_target = clap.get_text_embeddings([text]).detach()
     
     if criterion == "directional_loss":
-        audio_in_emb = clap.preprocess_and_embed(sig.to(device)).detach()
+        audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
         text_anchor_emb = clap.get_text_embeddings(["a sound"]).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
@@ -133,7 +128,7 @@ def text2fx(
         signal_effected = channel(sig.to(device), torch.sigmoid(params.to(device)))
 
         # Get CLAP embedding for effected audio
-        embedding_effected = clap.preprocess_and_embed(signal_effected) #.get_audio_embeddings takes in preprocessed audio
+        embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
 
         # loss
         if criterion == "directional_loss":
@@ -171,6 +166,7 @@ def text2fx(
     return out_sig
 
 def text2fx_params(
+        #old, need to fix
     sig: AudioSignal, 
     text: str,   
     channel: Channel,
@@ -235,7 +231,7 @@ def text2fx_params(
     embedding_target = msclap.get_text_embeddings([text]).detach()
     
     if criterion == "directional_loss":
-        audio_in_emb = msclap.preprocess_and_embed(sig.to(device)).detach()
+        audio_in_emb = msclap.get_audio_embeddings(sig.to(device)).detach()
         text_anchor_emb = msclap.get_text_embeddings(["a sound"]).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
@@ -246,7 +242,7 @@ def text2fx_params(
         signal_effected = channel(sig.to(device), torch.sigmoid(params.to(device)))
 
         # Get CLAP embedding for effected audio
-        embedding_effected = msclap.preprocess_and_embed(signal_effected) #.get_audio_embeddings takes in preprocessed audio
+        embedding_effected = msclap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
 
         # loss
         if criterion == "directional_loss":

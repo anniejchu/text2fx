@@ -17,6 +17,8 @@ from torch.utils.tensorboard import SummaryWriter
 from msclap import CLAP
 import requests
 import matplotlib.pyplot as plt
+from typing import Union, List
+
 
 """
 EX CLI USAGE
@@ -34,17 +36,17 @@ DATA_DIR = PROJECT_DIR / "data"
 RUNS_DIR = PROJECT_DIR / "runs"
 
 # setting sample rate
-SAMPLE_RATE = 44_100  # Resample all audio to a fixed rate, and pass to any effects that need it
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+SAMPLE_RATE = 44_100  # NOTE: should this be here? clap take something else?
+DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu" #
 
 class AbstractCLAPWrapper:
-    def preprocess(self, signal: AudioSignal):
+    def preprocess_audio(self, signal: AudioSignal):
         raise NotImplementedError("implement me :)")
     
     def get_audio_embeddings(self, signal: AudioSignal):
         raise NotImplementedError()
     
-    def get_text_embeddings(self, signal: AudioSignal):
+    def get_text_embeddings(self, text: Union[str, List[str]]):
         raise NotImplementedError()
     
 

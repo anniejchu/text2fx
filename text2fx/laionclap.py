@@ -1,5 +1,3 @@
-
-
 import os
 from pathlib import Path
 import requests
@@ -48,7 +46,7 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
             'PANN-14-tiny-transformer',
             'PANN-14-win-1536'
         ]
-        CLAP_SAMPLE_RATE = 48_000
+        self.CLAP_SAMPLE_RATE = 48_000
         CLAP_PRETRAINED_DIR = PRETRAINED_DIR / "clap"
         CLAP_DOWNLOAD_LINK = 'https://huggingface.co/lukewys/laion_clap/resolve/main/'
         CLAP_MODEL_IDX = 1
@@ -66,12 +64,75 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
             print(f"Downloading weights for checkpoint {ckpt}")
             ckpt_pth = download_file(CLAP_DOWNLOAD_LINK + ckpt, CLAP_PRETRAINED_DIR)
 
-        model = laion_clap.CLAP_Module(enable_fusion=ENABLE_FUSION, amodel=CLAP_AUDIO_MODELS[CLAP_AUDIO_MODEL_IDX])
-        model.load_ckpt(ckpt_pth)
+        #should this be self.model?
+        self.model = laion_clap.CLAP_Module(enable_fusion=ENABLE_FUSION, amodel=CLAP_AUDIO_MODELS[CLAP_AUDIO_MODEL_IDX])
+        self.model.load_ckpt(ckpt_pth)
 
-        model = model.to(DEVICE)
+        self.model = self.model.to(DEVICE)
 
         # Ensure model does not track parameter gradients (wastes memory)
-        model.eval()
-        for p in model.parameters():
+        self.model.eval()
+        for p in self.model.parameters():
             p.requires_grad = False
+
+    def preprocess_audio(self, signal: AudioSignal, quantize: bool = False): 
+        signal = signal.clone().resample(self.CLAP_SAMPLE_RATE) 
+        x = signal.samples #signal.audio_data.mean(1) 
+        
+        # Quantize audio
+        if quantize:
+            quant = (x.clone().clamp(min=-1, max=1) * 32767.).to(torch.int16)
+            quant = (quant / 32767.).to(torch.float32)
+
+            # Straight-through estimator: no-op on forward pass, preserves gradient on backward pass
+            x = x + (quant - x).detach()
+        return x #NOTE: returns tensor, do I need to put this as an AudioSignal?
+    
+    def get_audio_embeddings(self, signal: AudioSignal):
+        x = self.preprocess_audio(signal)
+        return self.model.get_audio_embedding_from_data(x=x, use_tensor=True)
+    
+    def get_text_embeddings(self, text: Union[str, List[str]]):
+        if isinstance(text, str):
+            text = [text]
+
+        text_padded = text + ["<null>"]         # Account for known batch_size==1 issue
+
+        
+        return self.model.get_text_embedding(text_padded, use_tensor=True)[:-1]
+
+    
+
+# #NOTE: TO CONVERT ABOVE
+# def clap_embed_audio(signal: AudioSignal, model: laion_clap.CLAP_Module, quantize: bool = False):
+
+#     # Given an audio recording, get its CLAP embedding vector.
+
+
+#     # CLAP requires mono 48kHz audio of shape (n_batch, n_samples)
+#     signal = signal.clone().resample(CLAP_SAMPLE_RATE) 
+#     x = signal.audio_data.mean(1) # signal.samples
+    
+#     # Quantize audio
+#     if quantize:
+#         quant = (x.clone().clamp(min=-1, max=1) * 32767.).to(torch.int16)
+#         quant = (quant / 32767.).to(torch.float32)
+
+#         # Straight-through estimator: no-op on forward pass, preserves gradient on backward pass
+#         x = x + (quant - x).detach()
+    
+#     emb = model.get_audio_embedding_from_data(x=x, use_tensor=True)
+
+#     return emb
+
+
+# def clap_embed_text(text: Union[str, List[str]], model: laion_clap.CLAP_Module):
+#     # Given a text discription, get its CLAP embedding vector.
+
+#     if isinstance(text, str):
+#         text = [text]
+
+#     # Account for known batch_size==1 issue
+#     text_padded = text + ["<null>"]
+    
+#     return model.get_text_embedding(text_padded, use_tensor=True)[:-1]

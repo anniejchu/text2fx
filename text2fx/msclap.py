@@ -64,7 +64,7 @@ class MSCLAPWrapper(AbstractCLAPWrapper):
                                                 audio_duration*sample_rate]
         return audio_time_series.unsqueeze(0).unsqueeze(0).float()
 
-    def preprocess(self, signal: AudioSignal):
+    def preprocess_audio(self, signal: AudioSignal):
         sig_resamp = []
         for i in range(signal.shape[0]):
             _sig = self.resample(signal[i]) #uses CLAP function on AudioSignal.samples
@@ -84,8 +84,9 @@ class MSCLAPWrapper(AbstractCLAPWrapper):
         return self.clap_model.clap.audio_encoder(preprocessed_audio)[0]
 
     #preprocess raw AudioSignal + get_audio_embeddings from that
-    def preprocess_and_embed(self, signal: AudioSignal):
-        return self.get_audio_embed(self.preprocess(signal).samples)
+    # NOTE: SHOULD THIS BE RENAMED AS self.get_audio_embeddings()
+    def get_audio_embeddings(self, signal: AudioSignal):
+        return self.get_audio_embed(self.preprocess_audio(signal).samples)
 
     def get_text_embeddings(self, texts):
         return self.clap_model.get_text_embeddings(texts)
