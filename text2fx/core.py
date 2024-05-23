@@ -14,7 +14,6 @@ from typing import Iterable
 import random
 from torch.utils.tensorboard import SummaryWriter
 
-from msclap import CLAP
 import requests
 import matplotlib.pyplot as plt
 from typing import Union, List
@@ -40,14 +39,19 @@ SAMPLE_RATE = 44_100  # NOTE: should this be here? clap take something else?
 DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu" #
 
 class AbstractCLAPWrapper:
-    def preprocess_audio(self, signal: AudioSignal):
+    def preprocess_audio(self, signal: AudioSignal) -> AudioSignal:
         raise NotImplementedError("implement me :)")
     
-    def get_audio_embeddings(self, signal: AudioSignal):
+    def get_audio_embeddings(self, signal: AudioSignal) -> torch.Tensor:
         raise NotImplementedError()
     
-    def get_text_embeddings(self, text: Union[str, List[str]]):
+    def get_text_embeddings(self, text: Union[str, List[str]]) -> torch.Tensor:
         raise NotImplementedError()
+    
+    @property
+    def sample_rate(self):
+        raise NotImplementedError()
+
     
 
 class Distortion(dasp_pytorch.modules.Processor):
@@ -144,9 +148,6 @@ def download_file(url, out_dir, chunk_size: int = 8192):
     return local_filename
 
 
-    
-# just for saving our text prompts as filename safely!
-# for folder creation
 def slugify(value, allow_unicode=False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
@@ -163,56 +164,26 @@ def slugify(value, allow_unicode=False):
     value = re.sub(r'[^\w\s-]', '', value.lower())
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
+
 def create_save_dir(text, sig, runs_dir):
     """ 
-    create a save folder for our current run.  
+    Create a save folder for our current run.
     """
-    # lets make a runs dir
-    # make a subfolder under runs with today's date in YYYY-MM-DAY format
+    # Create a directory for today's date in YYYY-MM-DD format
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    # run name should be text prompt + a number if there are multiple runs with the same prompt
     run_name = f"{slugify(text)}"    
-    today_dir = runs_dir / today
-    today_dir.parent.mkdir(parents=True, exist_ok=True)
+    today_dir = Path(runs_dir) / today
+    today_dir.mkdir(parents=True, exist_ok=True)
 
-    # see if we have any dirs in there with the same name
-    existing_runs = [d for d in today_dir.parent.iterdir() if d.is_dir() and run_name in d.stem]
+    # Check if there are any directories with the same run name
+    existing_runs = [d for d in today_dir.iterdir() if d.is_dir() and d.name.startswith(run_name)]
 
     if len(existing_runs) == 0:
         save_dir = today_dir / f"{run_name}-001"
     else:
-        latest_run = sorted(existing_runs, key=lambda x: x.split('-')[-1])[-1]
-        run_num = int(latest_run.split('-')[-1]) + 1
-        save_dir.stem = today_dir / f"{run_name}-{run_num}"
+        latest_run = sorted(existing_runs, key=lambda x: int(x.name.split('-')[-1]))[-1]
+        run_num = int(latest_run.name.split('-')[-1]) + 1
+        save_dir = today_dir / f"{run_name}-{run_num:03d}"
 
     save_dir.mkdir(exist_ok=True, parents=True)
     return save_dir
-
-#testing
-# def create_save_dir(text, sig, runs_dir):
-#     """ 
-#     create a save folder for our current run.  
-#     """
-#     # lets make a runs dir
-#     # make a subfolder under runs with today's date in YYYY-MM-DAY format
-#     today = datetime.datetime.now().strftime("%Y-%m-%d")
-#     # run name should be text prompt + a number if there are multiple runs with the same prompt
-#     run_name = f"{slugify(text)}"    
-#     today_dir = runs_dir / today
-#     today_dir.parent.mkdir(parents=True, exist_ok=True)
-
-#     # see if we have any dirs in there with the same name
-#     # existing_runs = [d for d in today_dir.parent.iterdir() if d.is_dir() and run_name in d.stem]
-#     existing_runs = [d for d in today_dir.iterdir() if d.is_dir() and run_name in d.stem]
-
-#     if len(existing_runs) == 0:
-#         print('new query)')
-#         save_dir = today_dir / f"{run_name}-001"
-#     else:
-#         print('follow up queries)')
-#         latest_run = sorted(existing_runs, key=lambda x: int(x.stem.split('-')[-1]))[-1]
-#         run_num = int(latest_run.stem.split('-')[-1]) + 1
-#         save_dir = today_dir / f"{run_name}-{run_num:03d}"
-
-#     save_dir.mkdir(exist_ok=True, parents=True)
-#     return save_dir

@@ -13,7 +13,9 @@ from transformers import BertForMaskedLM
 import matplotlib.pyplot as plt
 from text2fx.core import AbstractCLAPWrapper, download_file, PRETRAINED_DIR, DEVICE
 
+device = DEVICE
 
+#REQUIRES TRANSFORMERS == 4.30.0
 class LAIONCLAPWrapper(AbstractCLAPWrapper):
     def __init__(self):
         CLAP_MODELS = [
@@ -69,10 +71,11 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
         for p in self.model.parameters():
             p.requires_grad = False
 
-    def preprocess_audio(self, signal: AudioSignal, quantize: bool = False): 
-        signal = signal.clone().resample(self.CLAP_SAMPLE_RATE) 
-        x = signal.samples #signal.audio_data.mean(1) 
-        
+    def preprocess_audio(self, signal: AudioSignal, quantize: bool = False) -> AudioSignal: 
+        signal = signal.resample(self.CLAP_SAMPLE_RATE) #got rid of .clone()
+        x = signal.samples.mean(1, keepdim=False) #mono'd if num_channels > 1
+        #x shape after above is (nb, nc_1, n_samples(averaged))
+
         # Quantize audio
         if quantize:
             quant = (x.clone().clamp(min=-1, max=1) * 32767.).to(torch.int16)
@@ -80,52 +83,21 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
 
             # Straight-through estimator: no-op on forward pass, preserves gradient on backward pass
             x = x + (quant - x).detach()
-        return x #NOTE: returns tensor, do I need to put this as an AudioSignal?
+        signal.samples = x.unsqueeze(1)
+        return signal #NOTE: returns tensor, do I need to put this as an AudioSignal?
     
-    def get_audio_embeddings(self, signal: AudioSignal):
-        x = self.preprocess_audio(signal)
-        return self.model.get_audio_embedding_from_data(x=x, use_tensor=True)
+    def get_audio_embeddings(self, signal: AudioSignal) -> torch.Tensor:
+        x = self.preprocess_audio(signal).samples.squeeze(1)
+        return self.model.get_audio_embedding_from_data(x=x, use_tensor=True) #needs to be x (batch, samples)
     
-    def get_text_embeddings(self, text: Union[str, List[str]]):
+    def get_text_embeddings(self, text: Union[str, List[str]]) -> torch.Tensor:
         if isinstance(text, str):
             text = [text]
 
         text_padded = text + ["<null>"]         # Account for known batch_size==1 issue
 
         return self.model.get_text_embedding(text_padded, use_tensor=True)[:-1]
-
     
-
-# #NOTE: TO CONVERT ABOVE
-# def clap_embed_audio(signal: AudioSignal, model: laion_clap.CLAP_Module, quantize: bool = False):
-
-#     # Given an audio recording, get its CLAP embedding vector.
-
-
-#     # CLAP requires mono 48kHz audio of shape (n_batch, n_samples)
-#     signal = signal.clone().resample(CLAP_SAMPLE_RATE) 
-#     x = signal.audio_data.mean(1) # signal.samples
-    
-#     # Quantize audio
-#     if quantize:
-#         quant = (x.clone().clamp(min=-1, max=1) * 32767.).to(torch.int16)
-#         quant = (quant / 32767.).to(torch.float32)
-
-#         # Straight-through estimator: no-op on forward pass, preserves gradient on backward pass
-#         x = x + (quant - x).detach()
-    
-#     emb = model.get_audio_embedding_from_data(x=x, use_tensor=True)
-
-#     return emb
-
-
-# def clap_embed_text(text: Union[str, List[str]], model: laion_clap.CLAP_Module):
-#     # Given a text discription, get its CLAP embedding vector.
-
-#     if isinstance(text, str):
-#         text = [text]
-
-#     # Account for known batch_size==1 issue
-#     text_padded = text + ["<null>"]
-    
-#     return model.get_text_embedding(text_padded, use_tensor=True)[:-1]
+    @property
+    def sample_rate(self):
+        return self.CLAP_SAMPLE_RATE 

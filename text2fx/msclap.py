@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from text2fx.core import AbstractCLAPWrapper, download_file, PRETRAINED_DIR, DEVICE
 
 
+#REQUIRES TRANSFORMERS >= 4.34.0
 """ utility wrapper around MS CLAP model! """
 class MSCLAPWrapper(AbstractCLAPWrapper):
 
@@ -64,7 +65,7 @@ class MSCLAPWrapper(AbstractCLAPWrapper):
                                                 audio_duration*sample_rate]
         return audio_time_series.unsqueeze(0).unsqueeze(0).float()
 
-    def preprocess_audio(self, signal: AudioSignal):
+    def preprocess_audio(self, signal: AudioSignal) -> AudioSignal: #returns an AudioSignal
         sig_resamp = []
         for i in range(signal.shape[0]):
             _sig = self.resample(signal[i]) #uses CLAP function on AudioSignal.samples
@@ -78,17 +79,18 @@ class MSCLAPWrapper(AbstractCLAPWrapper):
 
         return AudioSignal.batch(sig_resamp)
 
-    #get_audio_embeddings from preprocessed AudioSignal (resampling, duration reworking)
-    def get_audio_embed(self, preprocessed_audio: AudioSignal): 
+    def _get_audio_embed(self, preprocessed_audio: AudioSignal) -> torch.Tensor: 
         preprocessed_audio = preprocessed_audio.reshape(preprocessed_audio.shape[0], preprocessed_audio.shape[2])
         return self.clap_model.clap.audio_encoder(preprocessed_audio)[0]
 
-    #preprocess raw AudioSignal + get_audio_embeddings from that
-    # NOTE: SHOULD THIS BE RENAMED AS self.get_audio_embeddings()
-    def get_audio_embeddings(self, signal: AudioSignal):
-        return self.get_audio_embed(self.preprocess_audio(signal).samples)
+    def get_audio_embeddings(self, signal: AudioSignal) -> torch.Tensor: 
+        return self._get_audio_embed(self.preprocess_audio(signal).samples)
 
-    def get_text_embeddings(self, texts):
+    def get_text_embeddings(self, texts) -> torch.Tensor:
         return self.clap_model.get_text_embeddings(texts)
+
+    @property
+    def sample_rate(self):
+        return self.clap_model.args.sampling_rate
 
 
