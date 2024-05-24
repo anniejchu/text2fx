@@ -32,7 +32,7 @@ def run_it(text_targets, model_name: str, input_audio: str):
                 "--criterion", criterion,
                 "--n_iters", str(n_iters),
                 "--lr", str(lr),
-                "--save_dir", str(base_save_dir/ model_name / audio_type / text.replace(prefix, "").replace(" ", "_") / f'seed_{i}_0'),
+                "--save_dir", str(base_save_dir/ model_name / audio_type / text.replace(prefix, "").replace(" ", "_") / f'seed{i}_0'),
                 "--params_init_type", "random",
                 "--seed_i", str(i),
 
@@ -63,10 +63,10 @@ def run_it_zero(text_targets, model_name: str, input_audio: str):
         ## NEED TO SWITCH TRANSFORMER VERSIONS
         #laion-clap = transformers==4.30.0
         #msclap = transformers>=4.34.0, try transformers==4.40.0
-model_name = "ms_clap"# "laion_clap"
+model_name = "laion_clap" #"ms_clap"# 
 
 
-# run_it(y, model_name, input_audio)
+run_it(y, model_name, input_audio)
 run_it_zero(y, model_name, input_audio)
 
 
