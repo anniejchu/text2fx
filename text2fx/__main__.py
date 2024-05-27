@@ -10,7 +10,7 @@ from typing import Iterable
 import random
 from torch.utils.tensorboard import SummaryWriter
 
-from msclap import CLAP
+# from msclap import CLAP
 
 from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, DEVICE, create_save_dir, RUNS_DIR
 
@@ -171,7 +171,15 @@ def text2fx(
 
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().ensure_max_of_audio()
-    out_sig.write(save_dir / "final.wav")
+    out_sig.write(save_dir / "final_ensuremaxofaudio.wav")
+
+    # 5/26 testing if .normalize() is better than .ensure_max_of_audio
+    out_sig1 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().normalize(-24)
+    out_sig1.write(save_dir / "final_normalized.wav")
+
+    out_sig2 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
+    out_sig2.write(save_dir / "final_untouched.wav")
+    # 5/26 test END
 
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)

@@ -177,9 +177,9 @@ def convert_to_tensors(converted_settings):
     return tensor_settings
 
 
-def compare_loss_anyfiles(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
-    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).ensure_max_of_audio()
-    outSig = AudioSignal(file_compare).to_mono().resample(44100).ensure_max_of_audio()
+def compare_loss_files_preprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
+    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).normalize(-24)
+    outSig = AudioSignal(file_compare).to_mono().resample(44100).normalize(-24)
 
     baselineSig_samples = baselineSig.samples
     outSig_samples = outSig.samples
@@ -188,3 +188,24 @@ def compare_loss_anyfiles(file_baseline, file_compare, loss_funct=auraloss.freq.
     
     return loss
 
+def compare_loss_files_unprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
+    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100)
+    outSig = AudioSignal(file_compare).to_mono().resample(44100)
+
+    baselineSig_samples = baselineSig.samples
+    outSig_samples = outSig.samples
+
+    loss = loss_funct(baselineSig_samples, outSig_samples)
+    
+    return loss
+
+# def compare_loss_audiosignals(sig1, sig2, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
+#     baselineSig = AudioSignal(sig1).to_mono().resample(44100).normalize(-24)
+#     outSig = AudioSignal(sig1).to_mono().resample(44100).normalize(-24)
+
+#     baselineSig_samples = baselineSig.samples
+#     outSig_samples = outSig.samples
+
+#     loss = loss_funct(baselineSig_samples, outSig_samples)
+    
+#     return loss

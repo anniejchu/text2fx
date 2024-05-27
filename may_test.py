@@ -12,7 +12,7 @@ audio_type = "guitar"
 input_audio = ASSETS_DIR / 'audealize_examples' / f'{audio_type}.wav' #path
 
 # Initializing some start parameteres
-base_save_dir = RUNS_DIR / 'test123' #change this at will
+base_save_dir = RUNS_DIR / 'test526_loudness' #change this at will
 criterion = "cosine-sim"
 n_iters = 600
 lr = 0.01
@@ -63,10 +63,15 @@ def run_it_zero(text_targets, model_name: str, input_audio: str):
         ## NEED TO SWITCH TRANSFORMER VERSIONS
         #laion-clap = transformers==4.30.0
         #msclap = transformers>=4.34.0, try transformers==4.40.0
-model_name = "laion_clap" #"ms_clap"# 
+model_name ='ms_clap'# "laion_clap" #"ms_clap"# 
 
 
-run_it(y, model_name, input_audio)
-run_it_zero(y, model_name, input_audio)
+
+#5/26 test
+words_526_loudness = ['bright']
+run_it(words_526_loudness, model_name, input_audio)
+# run_it_zero(y, model_name, input_audio)
+
+
 
 
