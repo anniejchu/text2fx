@@ -1,8 +1,11 @@
 from pathlib import Path
 from tqdm import tqdm
-from typing import Union, List
+
+from typing import Union, List, Optional
 import torch
 import numpy as np
+
+
 import audiotools
 import dasp_pytorch
 import auraloss
@@ -10,7 +13,7 @@ import auraloss
 from audiotools import AudioSignal
 import matplotlib.pyplot as plt
 import json
-
+from typing import Union, List
 
 def load_examples(dir_path):
     exts = ["mp3", "wav", "flac"]
@@ -177,26 +180,29 @@ def convert_to_tensors(converted_settings):
     return tensor_settings
 
 
+def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray], sample_rate: Optional[int] = None):
+    #audio can be filename or AudioSignal
+    if isinstance(audio_path_or_array, (str, Path)):
+        return AudioSignal(audio_path_or_array).to_mono().resample(44100).normalize(-24)
+    elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
+        return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(44100).normalize(-24)
+    else: 
+        raise ValueError("not tensor, str, path or array")
+        
+    
 def compare_loss_files_preprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
-    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).normalize(-24)
-    outSig = AudioSignal(file_compare).to_mono().resample(44100).normalize(-24)
-
-    baselineSig_samples = baselineSig.samples
-    outSig_samples = outSig.samples
-
-    loss = loss_funct(baselineSig_samples, outSig_samples)
+    baselineSig = preprocess_audio(file_baseline)
+    compareSig = preprocess_audio(file_compare)
+    # baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).normalize(-24)
+    # outSig = AudioSignal(file_compare).to_mono().resample(44100).normalize(-24)
+    loss = loss_funct(baselineSig.samples, compareSig.samples)
     
     return loss
 
 def compare_loss_files_unprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
     baselineSig = AudioSignal(file_baseline).to_mono().resample(44100)
     outSig = AudioSignal(file_compare).to_mono().resample(44100)
-
-    baselineSig_samples = baselineSig.samples
-    outSig_samples = outSig.samples
-
-    loss = loss_funct(baselineSig_samples, outSig_samples)
-    
+    loss = loss_funct(baselineSig.samples, outSig.samples) 
     return loss
 
 # def compare_loss_audiosignals(sig1, sig2, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):

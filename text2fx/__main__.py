@@ -127,6 +127,7 @@ def text2fx(
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
 
     sig.clone().cpu().write(save_dir / 'input.wav')
+    init_sig.clone().cpu().write(save_dir / 'staring.wav')
 
     embedding_target = clap.get_text_embeddings([text]).detach()
     
@@ -139,7 +140,15 @@ def text2fx(
     for n in pbar:
         
         # Apply effect with out estimated parameters
-        signal_effected = channel(sig.to(device), torch.sigmoid(params.to(device)))
+        sig_roll = sig.clone()
+
+        #TODO: make example, adding roll, figure out more global audio features, can make option (amount of shifting, whether you even roll)
+        roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,)) #todo: try .randint(-1000, 1000) samples
+        for i in range(sig_roll.batch_size):
+            rolled = torch.roll(sig_roll.samples[i], shifts=roll_amount[i], dims=-1)
+            sig_roll.samples[i:i+1] = rolled
+
+        signal_effected = channel(sig_roll.to(device), torch.sigmoid(params.to(device)))
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
