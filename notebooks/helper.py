@@ -56,7 +56,7 @@ def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False):
 # DASP 
 def dasp_apply_EQ_file(file_name, filters, Q=4.31):
     """
-    file(input signal) = mono or stereo (bs, n_channels, signals)
+    file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
                         ex torch.Size([1, 1, 451714])
     filters = list of (frequency, gain_db) pairs
     returns = output AudioSignal, filtered signal as (bs, n_channels, signals)
@@ -215,3 +215,26 @@ def compare_loss_files_unprocessed(file_baseline, file_compare, loss_funct=aural
 #     loss = loss_funct(baselineSig_samples, outSig_samples)
     
 #     return loss
+
+
+def apply_export_EQ(tensor_settings, input_file, export_parent_dir):
+    """
+    Processes tensor settings to filter audio and save the results.
+
+    Parameters:
+    tensor_settings (dict): A dictionary where keys are words and values are frequency gains.
+    input_file (InputType): The filename input data to be filtered.
+    AUDEALIZE_GND_TRUTH_DIR (Path): The directory where the ground truth audio files are to be saved.
+
+    Returns:
+    None
+    """
+    for word, freq_gains in tensor_settings.items():
+        filter_out = dasp_apply_EQ_file(input_file, freq_gains)
+        print(f'applying EQ for {word} to -> {input_file.stem}')
+
+        EXPORT_EX_DIR = Path(export_parent_dir / f"{input_file.stem}")
+        EXPORT_EX_DIR.mkdir(exist_ok=True)
+
+        filter_out.write(Path(EXPORT_EX_DIR, f"EQed_{word}.wav"))
+

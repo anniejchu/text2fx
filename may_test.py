@@ -8,21 +8,20 @@ prefix = 'this sound is '
 y = [prefix + x for x in top10_eq]
 
 # Setting up audio file
-audio_type = "guitar"
-input_audio = ASSETS_DIR / 'audealize_examples' / f'{audio_type}.wav' #path
+audio_type = "drums_beatles_musdb"
+input_audio = ASSETS_DIR / 'multistem_examples' / f'{audio_type}.wav' #path
 
 # Initializing some start parameteres
-base_save_dir = RUNS_DIR / 'test526_loudness' #change this at will
+base_save_dir = RUNS_DIR / 'test616_torchroll' #change this at will
 criterion = "cosine-sim"
 n_iters = 600
 lr = 0.01
 
 
-
 #running it with params set to random based on deterministic seed, then pushed up to sigmoid
 def run_it(text_targets, model_name: str, input_audio: str):
     for text in text_targets:
-        for i in range(5):
+        for i in range(3):
             print(f'starting random, seed {i}')
             command = [
                 "python", "-m", "text2fx",
@@ -66,10 +65,29 @@ def run_it_zero(text_targets, model_name: str, input_audio: str):
 model_name ='ms_clap'# "laion_clap" #"ms_clap"# 
 
 
+#616: EXPERIMENTING WITH TORCH.ROLL
+def torchroll_test(text_targets, model_name: str, input_audio: str, roll: str):
+    for text in text_targets:
+        for i in range(2):
+            print(f'starting random, seed {i}')
+            command = [
+                "python", "-m", "text2fx",
+                "--model_name", model_name,
+                "--input_audio", input_audio,
+                "--text", text,
+                "--criterion", criterion,
+                "--n_iters", str(n_iters),
+                "--lr", str(lr),
+                "--save_dir", str(base_save_dir/ model_name / audio_type / text.replace(prefix, "").replace(" ", "_") /f'seed{i}_0'/ f'roll_{roll}'),
+                "--params_init_type", "random",
+                "--seed_i", str(i),
+                "--roll", str(roll)
+            ]
+            subprocess.run(command)
 
-#5/26 test
-words_526_loudness = ['bright']
-run_it(words_526_loudness, model_name, input_audio)
+#torch_roll_test
+words_lite = ['bright', 'warm']
+torchroll_test(words_lite, model_name, input_audio, 'yes')
 # run_it_zero(y, model_name, input_audio)
 
 

@@ -80,6 +80,7 @@ def text2fx(
     save_dir: str = None, # figure out a save path automatically,
     params_init_type: str = "zeros",
     seed_i: int = 0,
+    roll: str = 'none',
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     # prevents loading the model everytime w/o needing to set it first as global variable
@@ -112,13 +113,25 @@ def text2fx(
         )
     else:
         raise ValueError
+    
+    # Log the model, torch amount, starting parameters, and their values
+    log_file = save_dir / f"experiment_log_roll_{roll}.txt"
+    with open(log_file, "a") as log:
+        log.write(f"Model: {model_name}\n")
+        log.write(f"Learning Rate: {lr}\n")
+        log.write(f"Number of Iterations: {n_iters}\n")
+        log.write(f"Criterion: {criterion}\n")
+        log.write(f"Params Initialization Type: {params_init_type}\n")
+        log.write(f"Seed: {seed_i}\n")
+        log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
+        log.write("="*40 + "\n")
 
     params.requires_grad=True
     # the optimizer!
     optimizer = torch.optim.Adam([params], lr=lr)
 
     #preprocessing initial sample
-    sig = sig.resample(44100).ensure_max_of_audio() 
+    sig = sig.resample(44100).normalize(-24) 
 
     # log what our initial effect sounds like (w/ random parameters applied)
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
@@ -127,7 +140,7 @@ def text2fx(
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
 
     sig.clone().cpu().write(save_dir / 'input.wav')
-    init_sig.clone().cpu().write(save_dir / 'staring.wav')
+    init_sig.clone().detach().cpu().write(save_dir / 'starting.wav')
 
     embedding_target = clap.get_text_embeddings([text]).detach()
     
@@ -142,10 +155,20 @@ def text2fx(
         # Apply effect with out estimated parameters
         sig_roll = sig.clone()
 
-        #TODO: make example, adding roll, figure out more global audio features, can make option (amount of shifting, whether you even roll)
-        roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,)) #todo: try .randint(-1000, 1000) samples
+        # TODO: make example, adding roll, figure out more global audio features, can make option (amount of shifting, whether you even roll)
+        if roll == 'none':
+            roll_amount = torch.zeros(sig_roll.batch_size, dtype=torch.int64)
+            
+        else:
+            roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,)) #todo: try .randint(-1000, 1000) samples
+
+        with open(log_file, "a") as log:
+            log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
+
         for i in range(sig_roll.batch_size):
-            rolled = torch.roll(sig_roll.samples[i], shifts=roll_amount[i], dims=-1)
+            # breakpoint()
+            rolled = torch.roll(sig_roll.samples[i], shifts=roll_amount[i].item(), dims=-1)
+            # print(rolled)
             sig_roll.samples[i:i+1] = rolled
 
         signal_effected = channel(sig_roll.to(device), torch.sigmoid(params.to(device)))
@@ -178,21 +201,22 @@ def text2fx(
             if writer:
                 writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
 
+    with open(log_file, "a") as log:
+        log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
+        
     # Play final signal with optimized effects parameters
-    out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().ensure_max_of_audio()
-    out_sig.write(save_dir / "final_ensuremaxofaudio.wav")
+    out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
+    out_sig.write(save_dir / "final.wav")
 
-    # 5/26 testing if .normalize() is better than .ensure_max_of_audio
+    # also exporting normalized output
     out_sig1 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().normalize(-24)
     out_sig1.write(save_dir / "final_normalized.wav")
-
-    out_sig2 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig2.write(save_dir / "final_untouched.wav")
-    # 5/26 test END
 
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
+
+
     
     return out_sig
 
@@ -211,6 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
     parser.add_argument("--seed_i", type=int, default=1, help="enter a number seed start")
+    parser.add_argument("--roll", type=str, default='none', help="to roll or not to roll")
 
 
     args = parser.parse_args()
@@ -225,5 +250,6 @@ if __name__ == "__main__":
         criterion=args.criterion, 
         save_dir=args.save_dir,
         params_init_type=args.params_init_type,
-        seed_i=args.seed_i
+        seed_i=args.seed_i,
+        roll=args.roll
     )
