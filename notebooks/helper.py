@@ -13,7 +13,8 @@ import auraloss
 from audiotools import AudioSignal
 import matplotlib.pyplot as plt
 import json
-from typing import Union, List
+from typing import Union, List, Tuple
+import os
 
 def load_examples(dir_path):
     exts = ["mp3", "wav", "flac"]
@@ -238,3 +239,72 @@ def apply_export_EQ(tensor_settings, input_file, export_parent_dir):
 
         filter_out.write(Path(EXPORT_EX_DIR, f"EQed_{word}.wav"))
 
+
+def find_wav_files(directory: Path) -> List[Tuple[Path, Path, Path]]:
+    wav_files = []
+    for root, _, files in os.walk(directory):
+        if all(f in files for f in ['starting.wav', 'input.wav', 'final.wav']):
+            starting_wav = Path(root) / 'starting.wav'
+            input_wav = Path(root) / 'input.wav'
+            final_wav = Path(root) / 'final.wav'
+            wav_files.append((starting_wav, input_wav, final_wav))
+    return wav_files
+
+def printy(path_dir: Union[Path, List[Path]]):
+    if isinstance(path_dir, list):
+        for path in path_dir:
+            print(path)
+    else:
+        print(path_dir)
+
+def find_directories_with_keyword(directories: List[Path], keywords: List[str], returnSingle: bool = False) -> Union[Path, List[Path], None]:
+    """
+    Find directories containing all given keywords.
+
+    Args:
+    - directories (list of Path): List of directory paths to search.
+    - keywords (list of str): List of keywords to search for.
+    - returnSingle (bool): If True, return only the first match. If False, return a list of all matches.
+
+    Returns:
+    - Path or list of Path: Single path or list of paths matching the keywords.
+    """
+
+    matches = [d for d in directories if all(k in str(d) for k in keywords)]
+    return min(matches, key=lambda d: len(d.parts)) if returnSingle and matches else (matches if matches else None)
+    
+    # if returnSingle:
+    #     return next((directory for directory in directories if all(keyword in str(directory) for keyword in keywords)), None)
+    # else:
+    #     return [directory for directory in directories if all(keyword in str(directory) for keyword in keywords)]
+
+def load_directories(dir_path: Path) -> List[Path]:
+    """
+    Load all subdirectories recursively from the given directory.
+
+    Args:
+    - dir_path (Path): Parent directory to pull all subdirectories from.
+
+    Returns:
+    - list of Path: List of all subdirectories.
+    """
+    directories = []
+    for root, dirs, _ in os.walk(dir_path):
+        for d in dirs:
+            directories.append(Path(root) / d)
+    return directories
+
+def load_and_find_directory_with_keyword(dir_path: Path, keywords: List[str], returnSingle: bool = False) -> Union[Path, List[Path], None]:
+    """
+    Search for directories given a folder (can be nested) and multiple keywords.
+
+    Args:
+    - dir_path (Path): Parent directory to pull all subdirectories from.
+    - keywords (list of str): List of keywords to search for.
+    - returnSingle (bool): If True, return only the first match. If False, return a list of all matches.
+
+    Returns:
+    - Path or list of Path: Single path or list of paths matching the keywords.
+    """
+    directories_all = load_directories(dir_path)
+    return find_directories_with_keyword(directories_all, keywords, returnSingle=returnSingle)

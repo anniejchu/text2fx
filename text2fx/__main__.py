@@ -81,6 +81,7 @@ def text2fx(
     params_init_type: str = "zeros",
     seed_i: int = 0,
     roll: str = 'none',
+    roll_amt: int = 1000,
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     # prevents loading the model everytime w/o needing to set it first as global variable
@@ -124,6 +125,7 @@ def text2fx(
         log.write(f"Params Initialization Type: {params_init_type}\n")
         log.write(f"Seed: {seed_i}\n")
         log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
+        log.write(f"roll?: {roll}, if custom: range is +/-{roll_amt}\n")
         log.write("="*40 + "\n")
 
     params.requires_grad=True
@@ -155,12 +157,14 @@ def text2fx(
         # Apply effect with out estimated parameters
         sig_roll = sig.clone()
 
-        # TODO: make example, adding roll, figure out more global audio features, can make option (amount of shifting, whether you even roll)
         if roll == 'none':
             roll_amount = torch.zeros(sig_roll.batch_size, dtype=torch.int64)
-            
+        elif roll == 'custom':
+            roll_amount = torch.randint(-roll_amt, roll_amt, (sig_roll.batch_size,))
+        elif roll == 'all':
+            roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
         else:
-            roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,)) #todo: try .randint(-1000, 1000) samples
+            raise ValueError('choose roll amount')
 
         with open(log_file, "a") as log:
             log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
@@ -236,6 +240,7 @@ if __name__ == "__main__":
     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
     parser.add_argument("--seed_i", type=int, default=1, help="enter a number seed start")
     parser.add_argument("--roll", type=str, default='none', help="to roll or not to roll")
+    parser.add_argument("--roll_amt", type=int, default=1000, help="range of # of samples for rolling action")
 
 
     args = parser.parse_args()
@@ -251,5 +256,7 @@ if __name__ == "__main__":
         save_dir=args.save_dir,
         params_init_type=args.params_init_type,
         seed_i=args.seed_i,
-        roll=args.roll
+        roll=args.roll,
+        roll_amt=args.roll_amt
+
     )
