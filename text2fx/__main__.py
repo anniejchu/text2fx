@@ -80,7 +80,7 @@ def text2fx(
     save_dir: str = None, # figure out a save path automatically,
     params_init_type: str = "zeros",
     seed_i: int = 0,
-    roll: str = 'none',
+    roll: str = 'all',
     roll_amt: int = 1000,
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
