@@ -39,7 +39,25 @@ def find_paths_with_keyword(file_paths, keywords, returnSingle=False):
     else:
         return [file for file in file_paths if all(keyword in str(file) for keyword in keywords)]
 
-def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False):
+def find_paths_with_EXACTkeyword(file_paths, keywords, returnSingle=False):
+    """
+    Find paths containing all given keywords exactly.
+
+    Args:
+    - file_paths (list of str or PosixPath): List of file paths to search.
+    - keywords (list of str): List of keywords to search for exact matches.
+    - return_single (bool): If True, return only the first match. If False, return a list of all matches.
+
+    Returns:
+    - str or list of str: Single path or list of paths matching the exact keywords.
+    """
+    if returnSingle:
+        return next((file for file in file_paths if all(any(keyword == part for part in str(file).split()) for keyword in keywords)), None)
+    else:
+        return [file for file in file_paths if all(any(keyword == part for part in str(file).split()) for keyword in keywords)]
+
+
+def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False, exactmatch=False):
     """
     Search for files given a folder (can be nested) and multiple keywords.
     
@@ -52,6 +70,9 @@ def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False):
     - str or list of str: Single path or list of paths matching the keywords.
     """
     examples_all = load_examples(dir_path)
+    # if exactmatch:
+    #     return find_paths_with_EXACTkeyword(examples_all, keywords, returnSingle=returnSingle)
+    # else:
     return find_paths_with_keyword(examples_all, keywords, returnSingle=returnSingle)
 
 # DASP 

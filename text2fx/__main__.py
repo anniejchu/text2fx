@@ -116,7 +116,7 @@ def text2fx(
         raise ValueError
     
     # Log the model, torch amount, starting parameters, and their values
-    log_file = save_dir / f"experiment_log_roll_{roll}.txt"
+    log_file = save_dir / f"experiment_log.txt"
     with open(log_file, "a") as log:
         log.write(f"Model: {model_name}\n")
         log.write(f"Learning Rate: {lr}\n")
@@ -125,6 +125,8 @@ def text2fx(
         log.write(f"Params Initialization Type: {params_init_type}\n")
         log.write(f"Seed: {seed_i}\n")
         log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
+        log.write(f"Starting Params Values (post sigmoid): {torch.sigmoid(params).data.cpu().numpy()}\n")
+
         log.write(f"roll?: {roll}, if custom: range is +/-{roll_amt}\n")
         log.write("="*40 + "\n")
 
@@ -148,7 +150,7 @@ def text2fx(
     
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
-        text_anchor_emb = clap.get_text_embeddings(["a sound"]).detach()
+        text_anchor_emb = clap.get_text_embeddings([f"this sound is not {text}"]).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
@@ -213,8 +215,8 @@ def text2fx(
     out_sig.write(save_dir / "final.wav")
 
     # also exporting normalized output
-    out_sig1 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().normalize(-24)
-    out_sig1.write(save_dir / "final_normalized.wav")
+    # out_sig1 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().normalize(-24)
+    # out_sig1.write(save_dir / "final_normalized.wav")
 
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
@@ -239,7 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
     parser.add_argument("--seed_i", type=int, default=1, help="enter a number seed start")
-    parser.add_argument("--roll", type=str, default='none', help="to roll or not to roll")
+    parser.add_argument("--roll", type=str, default='all', help="to roll or not to roll")
     parser.add_argument("--roll_amt", type=int, default=1000, help="range of # of samples for rolling action")
 
 
