@@ -1,0 +1,34 @@
+======= BASS =======
+// bass_idmt_007.wav
+- source: IDMT-SMT-BASS dataset
+- path: data/IDMT-SMT-BASS/bass_single/audio/007.wav
+
+======= GUITAR =======
+// guitar_idmt_ibanez_rock_4_110BPM.wav
+- source: IDMT-SMT-GUITAR
+- path: data/IDMT-SMT-GUITAR/IDMT-SMT-GUITAR_V2/dataset4/Ibanez 2820/slow/rock_blues/audio/rock_4_110BPM.wav
+
+======= DRUMS =======
+// drums_beatles_musdb.wav
+- source: musdb 
+- path: data/musdb_hq/train/Music Delta - Beatles/drums.wav
+
+// EXTRA_1: drums_disco_musdb.wav
+- source: musdb
+- path: data/musdb_hq/train/Music Delta - Disco/drums.wav
+
+======= VOCALS =======
+// vocal_beatles_musdb.wav
+- source: musdb 
+- path: data/musdb_hq/train/Music Delta - Beatles/vocals.wav
+
+// EXTRA_1: vocal_f8_dona_straight.wav
+- source: VocalSet
+- path: data/VocalSet/data/FULL/female8/excerpts/straight/f8_dona_straight.wav
+
+// EXTRA_2: vocal_m8_dona_straight.wav
+- source: VocalSet
+- path: data/VocalSet/data/FULL/male8/excerpts/straight/m8_dona_straight.wav
+
+====== PIANO ======
+// audealize sample
