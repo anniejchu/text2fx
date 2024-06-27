@@ -58,7 +58,7 @@ def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False, exac
     return find_paths_with_keyword(examples_all, keywords, returnSingle=returnSingle)
 
 # DASP 
-def dasp_apply_EQ_file(file_name, filters, Q=4.31):
+def dasp_apply_EQ_file(file_name, filters, Q=4.31): #process function
     """
     file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
                         ex torch.Size([1, 1, 451714])
@@ -79,7 +79,7 @@ def dasp_apply_EQ_file(file_name, filters, Q=4.31):
     for f0, gain_db in filters:
         b, a = dasp_pytorch.signal.biquad(gain_db*5, f0, Q, fs, 'peaking')         # Design peak filter
         filtered_signal = dasp_pytorch.signal.lfilter_via_fsm(filtered_signal, b, a)
-    filtered_signal= filtered_signal.view(nb,nc,nt)
+    filtered_signal= filtered_signal.view(nb,nc,nt) #this should be output
 
     out_audiosig = AudioSignal(filtered_signal, fs).ensure_max_of_audio()
 
