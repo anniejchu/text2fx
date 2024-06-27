@@ -39,24 +39,6 @@ def find_paths_with_keyword(file_paths, keywords, returnSingle=False):
     else:
         return [file for file in file_paths if all(keyword in str(file) for keyword in keywords)]
 
-def find_paths_with_EXACTkeyword(file_paths, keywords, returnSingle=False):
-    """
-    Find paths containing all given keywords exactly.
-
-    Args:
-    - file_paths (list of str or PosixPath): List of file paths to search.
-    - keywords (list of str): List of keywords to search for exact matches.
-    - return_single (bool): If True, return only the first match. If False, return a list of all matches.
-
-    Returns:
-    - str or list of str: Single path or list of paths matching the exact keywords.
-    """
-    if returnSingle:
-        return next((file for file in file_paths if all(any(keyword == part for part in str(file).split()) for keyword in keywords)), None)
-    else:
-        return [file for file in file_paths if all(any(keyword == part for part in str(file).split()) for keyword in keywords)]
-
-
 def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False, exactmatch=False):
     """
     Search for files given a folder (can be nested) and multiple keywords.
@@ -227,6 +209,10 @@ def compare_loss_files_unprocessed(file_baseline, file_compare, loss_funct=aural
     loss = loss_funct(baselineSig.samples, outSig.samples) 
     return loss
 
+def calculate_loss_sigs(sig1, sig2, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
+    loss = loss_funct(baselineSig.samples, outSig.samples) 
+    return loss
+
 # def compare_loss_audiosignals(sig1, sig2, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
 #     baselineSig = AudioSignal(sig1).to_mono().resample(44100).normalize(-24)
 #     outSig = AudioSignal(sig1).to_mono().resample(44100).normalize(-24)
@@ -277,55 +263,3 @@ def printy(path_dir: Union[Path, List[Path]]):
             print(path)
     else:
         print(path_dir)
-
-def find_directories_with_keyword(directories: List[Path], keywords: List[str], returnSingle: bool = False) -> Union[Path, List[Path], None]:
-    """
-    Find directories containing all given keywords.
-
-    Args:
-    - directories (list of Path): List of directory paths to search.
-    - keywords (list of str): List of keywords to search for.
-    - returnSingle (bool): If True, return only the first match. If False, return a list of all matches.
-
-    Returns:
-    - Path or list of Path: Single path or list of paths matching the keywords.
-    """
-
-    matches = [d for d in directories if all(k in str(d) for k in keywords)]
-    return min(matches, key=lambda d: len(d.parts)) if returnSingle and matches else (matches if matches else None)
-    
-    # if returnSingle:
-    #     return next((directory for directory in directories if all(keyword in str(directory) for keyword in keywords)), None)
-    # else:
-    #     return [directory for directory in directories if all(keyword in str(directory) for keyword in keywords)]
-
-def load_directories(dir_path: Path) -> List[Path]:
-    """
-    Load all subdirectories recursively from the given directory.
-
-    Args:
-    - dir_path (Path): Parent directory to pull all subdirectories from.
-
-    Returns:
-    - list of Path: List of all subdirectories.
-    """
-    directories = []
-    for root, dirs, _ in os.walk(dir_path):
-        for d in dirs:
-            directories.append(Path(root) / d)
-    return directories
-
-def load_and_find_directory_with_keyword(dir_path: Path, keywords: List[str], returnSingle: bool = False) -> Union[Path, List[Path], None]:
-    """
-    Search for directories given a folder (can be nested) and multiple keywords.
-
-    Args:
-    - dir_path (Path): Parent directory to pull all subdirectories from.
-    - keywords (list of str): List of keywords to search for.
-    - returnSingle (bool): If True, return only the first match. If False, return a list of all matches.
-
-    Returns:
-    - Path or list of Path: Single path or list of paths matching the keywords.
-    """
-    directories_all = load_directories(dir_path)
-    return find_directories_with_keyword(directories_all, keywords, returnSingle=returnSingle)
