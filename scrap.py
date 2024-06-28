@@ -15,30 +15,56 @@ aud_csv_path_EQ = NOTEBOOKS_DIR / 'audealize_data/eqdescriptors.json'
 EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
 # print(EQ_gains_dict['warm'])
 
-# EQ_gains_tuple_dict = tc.convert_to_freq_gain_tuples(EQ_gains_dict, EQ_freq_bands) # refactoring to 40 (freq, gain) tuples
-# EQ_w_gain_tensor_settings = tc.convert_to_tensors(EQ_gains_tuple_dict) # Converting all parameters into tensors
-
 # ----- Creating test instance of implemented 40band
 m40b = ParametricEQ_40band(sample_rate=44100)
-print(f'num of params in 40 band (should be 40): {m40b.num_params}')
+# print(f'num of params in 40 band (should be 40): {m40b.num_params}')
 
 # -------- Loading all 40 gain_values for 'warm' or creating a bunch of zeros
 warm_EQ_gains = torch.tensor(EQ_gains_dict['warm'])*5 #audealize implements this via *5 #torch.zeros(1, m40b.num_params).squeeze()
 # print(warm_EQ_gains)
-print(f'raw warm EQ gains #: {len(warm_EQ_gains)} // values: \n{warm_EQ_gains}')
+# print(f'raw warm EQ gains #: {len(warm_EQ_gains)} // values: \n{warm_EQ_gains}')
 
 # ------- Normalizing gain values to [0, 1]
 # test_params_sigmoid = torch.sigmoid(warm_EQ_gains) # diff normalization to [0, 1], don't use
 warm_EQ_gains_normalized = dasp_pytorch.modules.normalize(warm_EQ_gains, m40b.min_gain_db, m40b.max_gain_db)
-print(f'post normalization warm EQ gains #: {len(warm_EQ_gains_normalized)} // values \n{warm_EQ_gains_normalized}')
+# print(f'post normalization warm EQ gains #: {len(warm_EQ_gains_normalized)} // values \n{warm_EQ_gains_normalized}')
 
 # ------- Converting back to raw values
 denormed_dict_sigmoided = {}
 for i, param_name in enumerate(m40b.param_ranges):
     denormed_dict_sigmoided[param_name] = warm_EQ_gains_normalized[i]
 init_params = m40b.denormalize_param_dict(denormed_dict_sigmoided)
-print(f'sig --> back to raw (should be same): \n{init_params}')
+# print(f'sig --> back to raw (should be same): \n{init_params}')
 
+
+# --- testing funcitonal
+
+def testing_functional(signal):
+    m40b = ParametricEQ_40band(sample_rate=44100)
+    channel = Channel(m40b)
+    batch_size = 4  # for debugging
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+
+    signal = signal.to(device)
+    signal = AudioSignal.batch([signal] * batch_size)
+
+    params = torch.randn(signal.batch_size, channel.num_params).to(device)
+
+    # Apply effect with out estimated parameters
+    signal_effected = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
+
+    return signal_effected
+    # signal_effected.write(save_dir / "testing.wav")
+
+def save_sig_batch(sig_batched, save_dir):
+    for i, s in enumerate(sig_batched):
+        print(i, s)
+        s.write(save_dir/f"{i}_final.wav")
+
+test_sig = AudioSignal('assets/multistem_examples/bass_10s.wav')
+y = testing_functional(test_sig)
+test_ex_dir = Path('experiments/paramEQ_40')
+save_sig_batch(y, test_ex_dir)
 
 ### old
 # top10_eq = EQ_words_top_10

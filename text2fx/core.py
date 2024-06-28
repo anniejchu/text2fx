@@ -63,6 +63,60 @@ class Distortion(dasp_pytorch.modules.Processor):
         self.num_params = len(self.param_ranges)
 
 
+class Channel(torch.nn.Module):
+    def __init__(self, *args):
+    
+        super().__init__()
+    
+        modules = []
+        if isinstance(args[0], Iterable) and len(args) == 1:
+            for m in args[0]:
+                assert isinstance(m, dasp_pytorch.modules.Processor)
+                modules.append(m)
+        else:
+            for m in args:
+                assert isinstance(m, dasp_pytorch.modules.Processor)
+                modules.append(m)
+
+        # Ensure consistent sample rate
+        sample_rates = [m.sample_rate for m in modules]
+
+        # If not uniform, go with highest sample rate
+        self.sample_rate = max(sample_rates)
+
+        for i, m in enumerate(modules):
+            modules[i].sample_rate = self.sample_rate
+        self.modules = modules
+
+    @property #hacky thing decorator/annotator, concrete attribute, this is a getter
+    def num_params(self):
+        return sum([m.num_params for m in self.modules])
+
+    #if you call the object, it automatically calls **forward()** (uses __call__)
+    def forward(self, signal: AudioSignal, params: torch.Tensor):
+
+        output = signal.clone().resample(self.sample_rate)
+        
+        # Check for valid shape
+        assert params.ndim == 2  # (n_batch, n_parameters)
+        assert params.shape[-1] == self.num_params
+        
+        params_count = 0
+        for m in self.modules:
+
+            # Select parameters corresponding to current effect module
+            _params = params[:, params_count: params_count + m.num_params]
+            params_count += m.num_params
+
+            # Apply effect
+            output.audio_data = m.process_normalized(output.audio_data, _params) #so assumes _params is normalized [0, 1]
+
+            # Avoid clipping
+            output.ensure_max_of_audio()
+            
+        return output.resample(signal.sample_rate)  # Restore original sample rate
+
+
 # TODO [CHECK]: 2) rewrite processor class (parameq40)
 class ParametricEQ_40band(dasp_pytorch.modules.Processor):
     def __init__(
@@ -120,64 +174,8 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
 
         self.num_params = len(self.param_ranges)
 
-class Channel(torch.nn.Module):
-    def __init__(self, *args):
-    
-        super().__init__()
-    
-        modules = []
-        if isinstance(args[0], Iterable) and len(args) == 1:
-            for m in args[0]:
-                assert isinstance(m, dasp_pytorch.modules.Processor)
-                modules.append(m)
-        else:
-            for m in args:
-                assert isinstance(m, dasp_pytorch.modules.Processor)
-                modules.append(m)
-
-        # Ensure consistent sample rate
-        sample_rates = [m.sample_rate for m in modules]
-
-        # If not uniform, go with highest sample rate
-        self.sample_rate = max(sample_rates)
-
-        for i, m in enumerate(modules):
-            modules[i].sample_rate = self.sample_rate
-        self.modules = modules
-
-    @property #hacky thing decorator/annotator, concrete attribute, this is a getter
-    def num_params(self):
-        return sum([m.num_params for m in self.modules])
-
-    #if you call the object, it automatically calls **forward()** (uses __call__)
-    def forward(self, signal: AudioSignal, params: torch.Tensor):
-
-        output = signal.clone().resample(self.sample_rate)
-        
-        # Check for valid shape
-        assert params.ndim == 2  # (n_batch, n_parameters)
-        assert params.shape[-1] == self.num_params
-        
-        params_count = 0
-        for m in self.modules:
-
-            # Select parameters corresponding to current effect module
-            _params = params[:, params_count: params_count + m.num_params]
-            params_count += m.num_params
-
-            # Apply effect
-            output.audio_data = m.process_normalized(output.audio_data, _params) #so assumes _params is normalized [0, 1]
-
-            # Avoid clipping
-            output.ensure_max_of_audio()
-            
-        return output.resample(signal.sample_rate)  # Restore original sample rate
-
-# TODO: [DONE] rewrite parametric_eq.functional
 def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, *band_gains, q: float, **kwargs) -> torch.Tensor:
-    
     assert len(band_gains) == 40, f"got {len(band_gains)}"
-
     x_out = x.clone()
     
     nb,nc,nt = x_out.shape
@@ -191,10 +189,10 @@ def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, *band_gai
         x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
     x_out= x_out.view(nb,nc,nt) #this should be output
 
-    return x_out # Returns: sig_x (torch.Tensor): filtered signal
+    return x_out # Returns: x_out (torch.Tensor): filtered signal
 
-# DASP 
-def dasp_apply_EQ_file(file_name, filters, Q=4.31): #process function
+
+def dasp_apply_EQ_file(file_name, freqs, Q=4.31): #process function
     """
     file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
                         ex torch.Size([1, 1, 451714])
@@ -204,20 +202,9 @@ def dasp_apply_EQ_file(file_name, filters, Q=4.31): #process function
     audio = AudioSignal(file_name)
     x = audio.samples
     fs = audio.sample_rate
-    filtered_signal = x.clone()  # Make a copy of the original signal
 
-    # combine batch and channel dims
-    nb,nc,nt = filtered_signal.shape
-    filtered_signal= filtered_signal.view(nb*nc,1,nt)
-    # print(nb)
-
-    Q = torch.tensor(Q)
-    for f0, gain_db in filters:
-        b, a = dasp_pytorch.signal.biquad(gain_db*5, f0, Q, fs, 'peaking')         # Design peak filter
-        filtered_signal = dasp_pytorch.signal.lfilter_via_fsm(filtered_signal, b, a)
-    filtered_signal= filtered_signal.view(nb,nc,nt) #this should be output
-
-    out_audiosig = AudioSignal(filtered_signal, fs).ensure_max_of_audio()
+    filtered_sig = functional_parametric_eq_40band(x, fs, freqs, Q)
+    out_audiosig = AudioSignal(filtered_sig, fs).ensure_max_of_audio()
 
     return out_audiosig
 
