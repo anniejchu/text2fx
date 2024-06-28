@@ -16,25 +16,28 @@ EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
 EQ_gains_tuple_dict = tc.convert_to_freq_gain_tuples(EQ_gains_dict, EQ_freq_bands) # refactoring to 40 (freq, gain) tuples
 EQ_w_gain_tensor_settings = tc.convert_to_tensors(EQ_gains_tuple_dict) # Converting all parameters into tensors
 # print(EQ_gains_dict['warm'])
-warm_EQ_gains = torch.tensor(EQ_gains_dict['warm'])*5
 
-# creating test channel and init params
+# Creating test instance of implemented 40band
 m40b = ParametricEQ_40band(sample_rate=44100)
 print(f'num of params in 40 band: should be 40: {m40b.num_params}')
-# test_channel = Channel(ParametricEQ_40band(sample_rate=SAMPLE_RATE))
 
+# Loading gain_values for 'warm' (40 values) or creating a bunch of zeros
 zeros_EQ_gains = torch.zeros(1, m40b.num_params).squeeze()
+warm_EQ_gains = torch.tensor(EQ_gains_dict['warm'])*5 #audealize implements this via *5
 # print(warm_EQ_gains)
 print(f'raw warm EQ gains #: {len(warm_EQ_gains)} // values: \n{warm_EQ_gains}')
 
+# Putting gain values through sigmoid ... / normalize
 test_params_sigmoid = torch.sigmoid(warm_EQ_gains)
+test_params_normalize = dasp_pytorch.modules.normalize(warm_EQ_gains, -20, 20)
+# test_params_normalize = (warm_EQ_gains - warm_EQ_gains.min()) / (warm_EQ_gains.max() - warm_EQ_gains.min())
 # print(test_params_sigmoid)
-print(f'post-sig warm EQ gains #: {len(test_params_sigmoid)} // values \n{test_params_sigmoid}')
+print(f'post normalization warm EQ gains #: {len(test_params_normalize)} // values \n{test_params_normalize}')
 
+# Converting back to raw values
 denormed_dict_sigmoided = {}
 for i, param_name in enumerate(m40b.param_ranges):
-    denormed_dict_sigmoided[param_name] = test_params_sigmoid[i]
-
+    denormed_dict_sigmoided[param_name] = test_params_normalize[i]
 init_params = m40b.denormalize_param_dict(denormed_dict_sigmoided)
 print(f'sig --> back to raw: \n{init_params}')
 

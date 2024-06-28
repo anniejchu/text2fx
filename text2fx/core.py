@@ -63,7 +63,7 @@ class Distortion(dasp_pytorch.modules.Processor):
         self.num_params = len(self.param_ranges)
 
 
-# TODO [is there a way to assert ]: 2) rewrite processor class (parameq40)
+# TODO [CHECK]: 2) rewrite processor class (parameq40)
 class ParametricEQ_40band(dasp_pytorch.modules.Processor):
     def __init__(
         self,
@@ -73,8 +73,6 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
 
         min_gain_db: float = -20.0,
         max_gain_db: float = 20.0,
-        min_freq_hz: float = 20.0,
-        max_freq_hz: float = 20000.0,
 
     ):
         super().__init__()
