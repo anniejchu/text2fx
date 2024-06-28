@@ -84,7 +84,32 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
         for i in range(len(band_freqs)):
             setattr(self, f"band{i}_freq", band_freqs[i])
 
-        self.process_fn = functional_parametric_eq_40band #implemented 40 band functional 
+        def extract_band_gains(**kwargs):
+            band_gains = {
+                k: v for k, v in kwargs.items() if "band" in k
+            }
+            band_gains = dict(
+                sorted(
+                    band_gains.items(), 
+                    key=lambda x: int(x[0].split("band")[1].split("_")[0])
+                )
+            )            
+            band_gains = list(band_gains.values())
+
+            return band_gains
+
+        def process_wrapper(
+            x, sample_rate, *args, **kwargs
+        ):
+            
+            return functional_parametric_eq_40band(
+                x, 
+                sample_rate, 
+                *extract_band_gains(**kwargs),
+                q=q_factor
+            )
+
+        self.process_fn = process_wrapper
 
         # Initialize param_ranges dictionary
         self.param_ranges = {}
@@ -132,7 +157,7 @@ class Channel(torch.nn.Module):
         # Check for valid shape
         assert params.ndim == 2  # (n_batch, n_parameters)
         assert params.shape[-1] == self.num_params
-
+        
         params_count = 0
         for m in self.modules:
 
@@ -149,17 +174,20 @@ class Channel(torch.nn.Module):
         return output.resample(signal.sample_rate)  # Restore original sample rate
 
 # TODO: [DONE] rewrite parametric_eq.functional
-def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, q: float, *band_gains, **kwargs) -> torch.Tensor:
-    assert len(band_gains) == 40
+def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, *band_gains, q: float, **kwargs) -> torch.Tensor:
+    
+    assert len(band_gains) == 40, f"got {len(band_gains)}"
 
-    band_freqs = EQ_freq_bands # specify frequencies
     x_out = x.clone()
     
     nb,nc,nt = x_out.shape
     x_out= x_out.view(nb*nc,1,nt)
-
-    for i, band_gain in enumerate(band_gains):
-        b, a = dasp_pytorch.signal.biquad(band_gain, band_freqs[i], torch.tensor(q), sample_rate, 'peaking')         # Design peak filter
+    
+    band_freqs = torch.tensor(EQ_freq_bands, device=x.device).reshape(1, -1).repeat(nb*nc, 1) # specify frequencies
+    qs = torch.tensor([q], device=x.device).reshape(1).repeat(nb*nc)
+    
+    for i in range(len(band_gains)):
+        b, a = dasp_pytorch.signal.biquad(band_gains[i], band_freqs[:, i], qs, sample_rate, 'peaking')         # Design peak filter
         x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
     x_out= x_out.view(nb,nc,nt) #this should be output
 
