@@ -78,6 +78,8 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
         super().__init__()
         self.sample_rate = sample_rate
         self.q_factor = q_factor
+        self.min_gain_db = min_gain_db
+        self.max_gain_db = max_gain_db
 
         for i in range(len(band_freqs)):
             setattr(self, f"band{i}_freq", band_freqs[i])
