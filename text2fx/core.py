@@ -69,32 +69,29 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
         self,
         sample_rate: int,
         q_factor: float = 4.31,
+        band_freqs: list = EQ_freq_bands, #list
 
         min_gain_db: float = -20.0,
         max_gain_db: float = 20.0,
         min_freq_hz: float = 20.0,
         max_freq_hz: float = 20000.0,
 
-        band0_freq = EQ_freq_bands[0],
-        band1_freq = EQ_freq_bands[1],
-
-
     ):
         super().__init__()
         self.sample_rate = sample_rate
         self.q_factor = q_factor
+
+        for i in range(len(band_freqs)):
+            setattr(self, f"band{i}_freq", band_freqs[i])
+
         self.process_fn = functional_parametric_eq_40band #implemented 40 band functional 
 
         # Initialize param_ranges dictionary
         self.param_ranges = {}
 
         # Loop to populate param_ranges
-        for i in range(len(EQ_freq_bands)):
+        for i in range(len(band_freqs)):
             self.param_ranges[f"band{i}_gain_db"] = (min_gain_db, max_gain_db)
-            self.param_ranges[f"band{i}_cutoff_freq"] = (min_freq_hz, max_freq_hz) #or should this be torch.tensor(EQ_freq_bands[i])
-            # self.param_ranges[f"band{i}_cutoff_freq"] = EQ_freq_bands[i]
-            # self.param_ranges[f"band{i}_q_factor"] = (min_q_factor, max_q_factor) #this should be fixed?
-            # self.param_ranges[f"band{i}_q_factor"] = q_factor
 
         self.num_params = len(self.param_ranges)
 
@@ -162,7 +159,7 @@ def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, q: float,
     x_out= x_out.view(nb*nc,1,nt)
 
     for i, band_gain in enumerate(band_gains):
-        b, a = dasp_pytorch.signal.biquad(band_gain*5, band_freqs[i], torch.tensor(q), sample_rate, 'peaking')         # Design peak filter
+        b, a = dasp_pytorch.signal.biquad(band_gain, band_freqs[i], torch.tensor(q), sample_rate, 'peaking')         # Design peak filter
         x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
     x_out= x_out.view(nb,nc,nt) #this should be output
 

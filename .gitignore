@@ -13,7 +13,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache
 *.ipynb_checkpoints
-scrap*
+# scrap*
 
 **/full_samples/
 **/extra/
