@@ -20,6 +20,7 @@ import audiotools as at
 from audiotools import AudioSignal
 import dasp_pytorch
 import auraloss
+from functools import partial
 
 from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands
 
@@ -124,7 +125,6 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
         sample_rate: int,
         q_factor: float = 4.31,
         band_freqs: list = EQ_freq_bands, #list
-
         min_gain_db: float = -20.0,
         max_gain_db: float = 20.0,
 
@@ -135,58 +135,89 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
         self.min_gain_db = min_gain_db
         self.max_gain_db = max_gain_db
 
+        # setting band frequencies dynamically
         for i in range(len(band_freqs)):
             setattr(self, f"band{i}_freq", band_freqs[i])
 
-        def extract_band_gains(**kwargs):
-            band_gains = {
-                k: v for k, v in kwargs.items() if "band" in k
-            }
-            band_gains = dict(
-                sorted(
-                    band_gains.items(), 
-                    key=lambda x: int(x[0].split("band")[1].split("_")[0])
-                )
-            )            
-            band_gains = list(band_gains.values())
+        # setting
+        self.process_fn = partial(
+            functional_parametric_eq_40band,
+            q=q_factor
+        )
 
-            return band_gains
-
-        def process_wrapper(
-            x, sample_rate, *args, **kwargs
-        ):
-            
-            return functional_parametric_eq_40band(
-                x, 
-                sample_rate, 
-                *extract_band_gains(**kwargs),
-                q=q_factor
-            )
-
-        self.process_fn = process_wrapper
-
-        # Initialize param_ranges dictionary
+        # Loop to populate param_ranges, used in denormalize
         self.param_ranges = {}
-
-        # Loop to populate param_ranges
         for i in range(len(band_freqs)):
             self.param_ranges[f"band{i}_gain_db"] = (min_gain_db, max_gain_db)
 
         self.num_params = len(self.param_ranges)
 
-def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, *band_gains, q: float, **kwargs) -> torch.Tensor:
-    assert len(band_gains) == 40, f"got {len(band_gains)}"
+def functional_parametric_eq_40band(
+        x: torch.Tensor, 
+        sample_rate: int, 
+        band0_gain_db: torch.Tensor,
+        band1_gain_db: torch.Tensor,
+        band2_gain_db: torch.Tensor,
+        band3_gain_db: torch.Tensor,
+        band4_gain_db: torch.Tensor,
+        band5_gain_db: torch.Tensor,
+        band6_gain_db: torch.Tensor,
+        band7_gain_db: torch.Tensor,
+        band8_gain_db: torch.Tensor,
+        band9_gain_db: torch.Tensor,
+        band10_gain_db: torch.Tensor,
+        band11_gain_db: torch.Tensor,
+        band12_gain_db: torch.Tensor,
+        band13_gain_db: torch.Tensor,
+        band14_gain_db: torch.Tensor,
+        band15_gain_db: torch.Tensor,
+        band16_gain_db: torch.Tensor,
+        band17_gain_db: torch.Tensor,
+        band18_gain_db: torch.Tensor,
+        band19_gain_db: torch.Tensor,
+        band20_gain_db: torch.Tensor,
+        band21_gain_db: torch.Tensor,
+        band22_gain_db: torch.Tensor,
+        band23_gain_db: torch.Tensor,
+        band24_gain_db: torch.Tensor,
+        band25_gain_db: torch.Tensor,
+        band26_gain_db: torch.Tensor,
+        band27_gain_db: torch.Tensor,
+        band28_gain_db: torch.Tensor,
+        band29_gain_db: torch.Tensor,
+        band30_gain_db: torch.Tensor,
+        band31_gain_db: torch.Tensor,
+        band32_gain_db: torch.Tensor,
+        band33_gain_db: torch.Tensor,
+        band34_gain_db: torch.Tensor,
+        band35_gain_db: torch.Tensor,
+        band36_gain_db: torch.Tensor,
+        band37_gain_db: torch.Tensor,
+        band38_gain_db: torch.Tensor,
+        band39_gain_db: torch.Tensor,
+        q: float, 
+    ) -> torch.Tensor:
+
     x_out = x.clone()
     
     nb,nc,nt = x_out.shape
+    # print(nb, nc, nt)
     x_out= x_out.view(nb*nc,1,nt)
     
     band_freqs = torch.tensor(EQ_freq_bands, device=x.device).reshape(1, -1).repeat(nb*nc, 1) # specify frequencies
+    # print(band_freqs)
     qs = torch.tensor([q], device=x.device).reshape(1).repeat(nb*nc)
-    
-    for i in range(len(band_gains)):
-        b, a = dasp_pytorch.signal.biquad(band_gains[i], band_freqs[:, i], qs, sample_rate, 'peaking')         # Design peak filter
+    # print(qs)
+    for i in range(len(band_freqs)):
+        band_gain_i = locals()[f"band{i}_gain_db"] 
+        #TODO: seems to be giving a tensor (len=batch_size) with different values instead of a single value?
+        breakpoint()
+
+        # Design peak filter
+        b, a = dasp_pytorch.signal.biquad(torch.tensor([band_gain_i], device='cuda:0'), band_freqs[:, i], qs, sample_rate, 'peaking')
+        
         x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
+
     x_out= x_out.view(nb,nc,nt) #this should be output
 
     return x_out # Returns: x_out (torch.Tensor): filtered signal
