@@ -2,17 +2,17 @@ from pathlib import Path
 from tqdm import tqdm
 
 import torch
-import numpy as np
+import numpy
 import audiotools as at
 import dasp_pytorch
 from audiotools import AudioSignal
-from typing import Iterable
-import random
+
 from torch.utils.tensorboard import SummaryWriter
 
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, DEVICE, create_save_dir, RUNS_DIR
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, create_save_dir
+from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
 import matplotlib.pyplot as plt
 
@@ -26,7 +26,6 @@ python -m text2fx --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"
                  --params_init_type "zeros"
                  --
 """
-SAMPLE_RATE = 44100
 device = DEVICE #torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
 

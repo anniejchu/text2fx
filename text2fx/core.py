@@ -1,23 +1,27 @@
 from pathlib import Path
-from tqdm import tqdm
 import datetime
 import unicodedata
 import re
+import random
+import json
+import os
+from pathlib import Path
+from typing import Union, List, Optional, Tuple, Iterable
 
 import torch
 import torchaudio.transforms as T
-import numpy as np
-import audiotools as at
-import dasp_pytorch
-from audiotools import AudioSignal
-from typing import Iterable
-import random
 from torch.utils.tensorboard import SummaryWriter
-
+import numpy as np
 import requests
 import matplotlib.pyplot as plt
-from typing import Union, List
+from tqdm import tqdm
 
+import audiotools as at
+from audiotools import AudioSignal
+import dasp_pytorch
+import auraloss
+
+from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands
 
 """
 EX CLI USAGE
@@ -27,16 +31,6 @@ python text2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"
                  --n_iters 600 \
                  --lr 0.01 
 """
-
-PROJECT_DIR = Path(__file__).parent.parent
-ASSETS_DIR = PROJECT_DIR / "assets"
-PRETRAINED_DIR = PROJECT_DIR / "pretrained"
-DATA_DIR = PROJECT_DIR / "data"
-RUNS_DIR = PROJECT_DIR / "runs"
-
-# setting sample rate
-SAMPLE_RATE = 44_100  # NOTE: should this be here? clap take something else?
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else "cpu" #
 
 class AbstractCLAPWrapper:
     def preprocess_audio(self, signal: AudioSignal) -> AudioSignal:
@@ -68,41 +62,41 @@ class Distortion(dasp_pytorch.modules.Processor):
         }
         self.num_params = len(self.param_ranges)
 
-# TODO: 1)  rewrite parametric_eq.functional
-# TODO: 2) rewrite processor class (parameq40)
 
-# class ParamEQ_40(dasp_pytorch.modules.Processor):
-#     def __init__(
-#         self,
-#         sample_rate: int,
-#         min_gain_db: float = -20.0,
-#         max_gain_db: float = 20.0,
-#         q_factor: float = 0.1,
-#     ):
-#         super().__init__()
-#             self.sample_rate = sample_rate
-#             self.process_fn = parametric_eq
-#             self.param_ranges = {
-#                 "low_shelf_gain_db": (min_gain_db, max_gain_db),
-#                 "low_shelf_cutoff_freq": (20, 2000),
-#                 "low_shelf_q_factor": (min_q_factor, max_q_factor),
-#                 "band0_gain_db": (min_gain_db, max_gain_db),
-#                 "band0_cutoff_freq": (80, 2000),
-#                 "band0_q_factor": (min_q_factor, max_q_factor),
-#                 "band1_gain_db": (min_gain_db, max_gain_db),
-#                 "band1_cutoff_freq": (2000, 8000),
-#                 "band1_q_factor": (min_q_factor, max_q_factor),
-#                 "band2_gain_db": (min_gain_db, max_gain_db),
-#                 "band2_cutoff_freq": (8000, 12000),
-#                 "band2_q_factor": (min_q_factor, max_q_factor),
-#                 "band3_gain_db": (min_gain_db, max_gain_db),
-#                 "band3_cutoff_freq": (12000, (sample_rate // 2) - 1000),
-#                 "band3_q_factor": (min_q_factor, max_q_factor),
-#                 "high_shelf_gain_db": (min_gain_db, max_gain_db),
-#                 "high_shelf_cutoff_freq": (4000, (sample_rate // 2) - 1000),
-#                 "high_shelf_q_factor": (min_q_factor, max_q_factor),
-#             }
-#             self.num_params = len(self.param_ranges)
+# TODO [is there a way to assert ]: 2) rewrite processor class (parameq40)
+class ParametricEQ_40band(dasp_pytorch.modules.Processor):
+    def __init__(
+        self,
+        sample_rate: int,
+        q_factor: float = 4.31,
+
+        min_gain_db: float = -20.0,
+        max_gain_db: float = 20.0,
+        min_freq_hz: float = 20.0,
+        max_freq_hz: float = 20000.0,
+
+        band0_freq = EQ_freq_bands[0],
+        band1_freq = EQ_freq_bands[1],
+
+
+    ):
+        super().__init__()
+        self.sample_rate = sample_rate
+        self.q_factor = q_factor
+        self.process_fn = functional_parametric_eq_40band #implemented 40 band functional 
+
+        # Initialize param_ranges dictionary
+        self.param_ranges = {}
+
+        # Loop to populate param_ranges
+        for i in range(len(EQ_freq_bands)):
+            self.param_ranges[f"band{i}_gain_db"] = (min_gain_db, max_gain_db)
+            self.param_ranges[f"band{i}_cutoff_freq"] = (min_freq_hz, max_freq_hz) #or should this be torch.tensor(EQ_freq_bands[i])
+            # self.param_ranges[f"band{i}_cutoff_freq"] = EQ_freq_bands[i]
+            # self.param_ranges[f"band{i}_q_factor"] = (min_q_factor, max_q_factor) #this should be fixed?
+            # self.param_ranges[f"band{i}_q_factor"] = q_factor
+
+        self.num_params = len(self.param_ranges)
 
 class Channel(torch.nn.Module):
     def __init__(self, *args):
@@ -157,6 +151,51 @@ class Channel(torch.nn.Module):
             
         return output.resample(signal.sample_rate)  # Restore original sample rate
 
+# TODO: [DONE] rewrite parametric_eq.functional
+def functional_parametric_eq_40band(x: torch.Tensor, sample_rate: int, q: float, *band_gains, **kwargs) -> torch.Tensor:
+    assert len(band_gains) == 40
+
+    band_freqs = EQ_freq_bands # specify frequencies
+    x_out = x.clone()
+    
+    nb,nc,nt = x_out.shape
+    x_out= x_out.view(nb*nc,1,nt)
+
+    for i, band_gain in enumerate(band_gains):
+        b, a = dasp_pytorch.signal.biquad(band_gain*5, band_freqs[i], torch.tensor(q), sample_rate, 'peaking')         # Design peak filter
+        x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
+    x_out= x_out.view(nb,nc,nt) #this should be output
+
+    return x_out # Returns: sig_x (torch.Tensor): filtered signal
+
+# DASP 
+def dasp_apply_EQ_file(file_name, filters, Q=4.31): #process function
+    """
+    file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
+                        ex torch.Size([1, 1, 451714])
+    filters = list of (frequency, gain_db) pairs
+    returns = output AudioSignal, filtered signal as (bs, n_channels, signals)
+    """
+    audio = AudioSignal(file_name)
+    x = audio.samples
+    fs = audio.sample_rate
+    filtered_signal = x.clone()  # Make a copy of the original signal
+
+    # combine batch and channel dims
+    nb,nc,nt = filtered_signal.shape
+    filtered_signal= filtered_signal.view(nb*nc,1,nt)
+    # print(nb)
+
+    Q = torch.tensor(Q)
+    for f0, gain_db in filters:
+        b, a = dasp_pytorch.signal.biquad(gain_db*5, f0, Q, fs, 'peaking')         # Design peak filter
+        filtered_signal = dasp_pytorch.signal.lfilter_via_fsm(filtered_signal, b, a)
+    filtered_signal= filtered_signal.view(nb,nc,nt) #this should be output
+
+    out_audiosig = AudioSignal(filtered_signal, fs).ensure_max_of_audio()
+
+    return out_audiosig
+
 def load_audio_examples():
     # Load audio examples
     exts = ["mp3", "wav", "flac"]
@@ -164,7 +203,12 @@ def load_audio_examples():
     example_files = sum(example_files, [])  # Trick to flatten list of lists
     return example_files
 
-    
+def load_examples(dir_path):
+    exts = ["mp3", "wav", "flac"]
+    example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
+    example_files = sum(example_files, [])  # Trick to flatten list of lists
+    return example_files
+
 def download_file(url, out_dir, chunk_size: int = 8192):
     
     local_filename = Path(out_dir) / url.split('/')[-1]
@@ -222,27 +266,8 @@ def create_save_dir(text, sig, runs_dir):
     save_dir.mkdir(exist_ok=True, parents=True)
     return save_dir
 
-## helper files
-from pathlib import Path
-from tqdm import tqdm
-from typing import Union, List, Optional
-import torch
-import numpy as np
-import audiotools
-import dasp_pytorch
-import auraloss
-# import laion_clap
-from audiotools import AudioSignal
-import matplotlib.pyplot as plt
-import json
-from typing import Union, List, Tuple
-import os
+#from notebook / helper.py 
 
-def load_examples(dir_path):
-    exts = ["mp3", "wav", "flac"]
-    example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
-    example_files = sum(example_files, [])  # Trick to flatten list of lists
-    return example_files
 
 def find_paths_with_keyword(file_paths, keywords, returnSingle=False):
     """
@@ -279,33 +304,6 @@ def load_and_find_path_with_keyword(dir_path, keywords, returnSingle=False, exac
     # else:
     return find_paths_with_keyword(examples_all, keywords, returnSingle=returnSingle)
 
-# DASP 
-def dasp_apply_EQ_file(file_name, filters, Q=4.31): #process function
-    """
-    file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
-                        ex torch.Size([1, 1, 451714])
-    filters = list of (frequency, gain_db) pairs
-    returns = output AudioSignal, filtered signal as (bs, n_channels, signals)
-    """
-    audio = AudioSignal(file_name)
-    x = audio.samples
-    fs = audio.sample_rate
-    filtered_signal = x.clone()  # Make a copy of the original signal
-
-    # combine batch and channel dims
-    nb,nc,nt = filtered_signal.shape
-    filtered_signal= filtered_signal.view(nb*nc,1,nt)
-    # print(nb)
-
-    Q = torch.tensor(Q)
-    for f0, gain_db in filters:
-        b, a = dasp_pytorch.signal.biquad(gain_db*5, f0, Q, fs, 'peaking')         # Design peak filter
-        filtered_signal = dasp_pytorch.signal.lfilter_via_fsm(filtered_signal, b, a)
-    filtered_signal= filtered_signal.view(nb,nc,nt) #this should be output
-
-    out_audiosig = AudioSignal(filtered_signal, fs).ensure_max_of_audio()
-
-    return out_audiosig
 
 def plot_eq_curve(freq_bands, gains):
     """
@@ -326,7 +324,6 @@ def plot_eq_curve(freq_bands, gains):
     plt.legend()
     plt.grid(True)
     plt.show()
-
 
 
 def find_settings_for_word(data, search_word):
