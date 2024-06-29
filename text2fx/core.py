@@ -22,7 +22,7 @@ import dasp_pytorch
 import auraloss
 from functools import partial
 
-from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands
+from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE
 
 """
 EX CLI USAGE
@@ -94,7 +94,7 @@ class Channel(torch.nn.Module):
         return sum([m.num_params for m in self.modules])
 
     #if you call the object, it automatically calls **forward()** (uses __call__)
-    def forward(self, signal: AudioSignal, params: torch.Tensor):
+    def forward(self, signal: AudioSignal, params: torch.Tensor)  -> AudioSignal:
 
         output = signal.clone().resample(self.sample_rate)
         
@@ -118,7 +118,6 @@ class Channel(torch.nn.Module):
         return output.resample(signal.sample_rate)  # Restore original sample rate
 
 
-# TODO [CHECK]: 2) rewrite processor class (parameq40)
 class ParametricEQ_40band(dasp_pytorch.modules.Processor):
     def __init__(
         self,
@@ -210,11 +209,9 @@ def functional_parametric_eq_40band(
     # print(qs)
     for i in range(len(band_freqs)):
         band_gain_i = locals()[f"band{i}_gain_db"] 
-        #TODO: seems to be giving a tensor (len=batch_size) with different values instead of a single value?
-        breakpoint()
 
         # Design peak filter
-        b, a = dasp_pytorch.signal.biquad(torch.tensor([band_gain_i], device='cuda:0'), band_freqs[:, i], qs, sample_rate, 'peaking')
+        b, a = dasp_pytorch.signal.biquad(band_gain_i, band_freqs[:, i], qs, sample_rate, 'peaking')
         
         x_out = dasp_pytorch.signal.lfilter_via_fsm(x_out, b, a)
 
@@ -445,13 +442,13 @@ def convert_to_tensors(converted_settings):
 
     return tensor_settings
 
-
-def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray], sample_rate: Optional[int] = None):
-    #audio can be filename or AudioSignal
+# probably return tensor instead of audiosig for easier batching
+def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray], sample_rate: Optional[int] = None) -> AudioSignal:
+    #audio can be filename or AudioSignal; if tensor, must provide sample_rate
     if isinstance(audio_path_or_array, (str, Path)):
-        return AudioSignal(audio_path_or_array).to_mono().resample(44100).normalize(-24)
+        return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).normalize(-24)
     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
-        return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(44100).normalize(-24)
+        return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).normalize(-24)
     else: 
         raise ValueError("not tensor, str, path or array")
         

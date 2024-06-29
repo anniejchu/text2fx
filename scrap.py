@@ -13,8 +13,8 @@ from text2fx.constants import EQ_freq_bands, EQ_words_top_10, NOTEBOOKS_DIR, SAM
 # ---- Loading EQ params
 aud_csv_path_EQ = NOTEBOOKS_DIR / 'audealize_data/eqdescriptors.json'
 EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
-EQ_gains_tuple_dict = tc.convert_to_freq_gain_tuples(EQ_gains_dict, EQ_freq_bands) # refactoring to 40 (freq, gain) tuples
-EQ_w_gain_tensor_settings = tc.convert_to_tensors(EQ_gains_tuple_dict) # Converting all parameters into tensors
+# EQ_gains_tuple_dict = tc.convert_to_freq_gain_tuples(EQ_gains_dict, EQ_freq_bands) # refactoring to 40 (freq, gain) tuples
+# EQ_w_gain_tensor_settings = tc.convert_to_tensors(EQ_gains_tuple_dict) # Converting all parameters into tensors
 
 # print(EQ_w_gain_tensor_settings['warm'])
 # print(EQ_gains_dict['warm'])
@@ -52,19 +52,25 @@ def testing_func_basic():
     output_tensor = functional_parametric_eq_40band(test_sig.samples, test_sig.sample_rate, *band_gains, q=q_value)
     print(output_tensor)
 
-# TODO: NOT WORKING, 
-def testing_functional(signal): # not working
+def testing_functional(signal, batch_size, word='none'): # not working
     m40b = ParametricEQ_40band(sample_rate=44100)
     channel = Channel(m40b)
 
-    batch_size = 4  # for debugging
+    # batch_size = 4  # for debugging
 
     # Use GPU if available
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
     signal = signal.to(device)
     signal = AudioSignal.batch([signal] * batch_size)
 
-    params = torch.randn(signal.batch_size, channel.num_params).to(device)
+    if word=='none':
+        print(f'... setting random params')
+        params = torch.randn(signal.batch_size, channel.num_params).to(device)
+    else:
+        print(f'...getting parameters for {word}')
+        param_single = torch.tensor(EQ_gains_dict[word])*5 #make dict parameter
+        params = param_single.expand(signal.batch_size, -1).to(device)
+    print(params)
     # params = torch.randn(1, channel.num_params).expand(signal.batch_size, -1).to(device) #random params copied across batch size
 
     # breakpoint()    
@@ -76,14 +82,19 @@ def testing_functional(signal): # not working
 def save_sig_batch(sig_batched, save_dir):
     for i, s in enumerate(sig_batched):
         print(i, s)
-        s.write(save_dir/f"{i}_final.wav")
+        s.write(save_dir/f"{i}_final_o.wav")
+        print(f'saved {i}, {s}')
 
 if __name__ == "__main__":
 
     # testing_func_basic() # working
-
+    EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
     test_sig = AudioSignal('assets/multistem_examples/bass_10s.wav').to(DEVICE)
-    testing_functional(test_sig)
+    out_sig = testing_functional(test_sig, 2, 'cold')
+    print(out_sig)
+    test_ex_dir = Path('experiments/paramEQ_40')
+    save_sig_batch(out_sig, test_ex_dir)
+
     # _m40b = ParametricEQ_40band(sample_rate=44100)
     # channel = Channel(_m40b)
     # batch_size = 4  # for debugging
