@@ -10,36 +10,6 @@ import text2fx.core as tc
 from text2fx.core import ParametricEQ_40band, Channel, functional_parametric_eq_40band
 from text2fx.constants import EQ_freq_bands, EQ_words_top_10, NOTEBOOKS_DIR, SAMPLE_RATE, DEVICE
 
-# ---- Loading EQ params
-aud_csv_path_EQ = NOTEBOOKS_DIR / 'audealize_data/eqdescriptors.json'
-EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
-# EQ_gains_tuple_dict = tc.convert_to_freq_gain_tuples(EQ_gains_dict, EQ_freq_bands) # refactoring to 40 (freq, gain) tuples
-# EQ_w_gain_tensor_settings = tc.convert_to_tensors(EQ_gains_tuple_dict) # Converting all parameters into tensors
-
-# print(EQ_w_gain_tensor_settings['warm'])
-# print(EQ_gains_dict['warm'])
-
-# ----- Creating test instance of implemented 40band
-m40b = ParametricEQ_40band(sample_rate=44100)
-# print(f'num of params in 40 band (should be 40): {m40b.num_params}')
-
-# -------- Loading all 40 gain_values for 'warm' or creating a bunch of zeros
-warm_EQ_gains = torch.tensor(EQ_gains_dict['warm'])*5 #audealize implements this via *5 #torch.zeros(1, m40b.num_params).squeeze()
-# print(warm_EQ_gains)
-# print(f'raw warm EQ gains #: {len(warm_EQ_gains)} // values: \n{warm_EQ_gains}')
-
-# ------- Normalizing gain values to [0, 1]
-# test_params_sigmoid = torch.sigmoid(warm_EQ_gains) # diff normalization to [0, 1], don't use
-warm_EQ_gains_normalized = dasp_pytorch.modules.normalize(warm_EQ_gains, m40b.min_gain_db, m40b.max_gain_db)
-# print(f'post normalization warm EQ gains #: {len(warm_EQ_gains_normalized)} // values \n{warm_EQ_gains_normalized}')
-
-# ------- Converting back to raw values
-denormed_dict_sigmoided = {}
-for i, param_name in enumerate(m40b.param_ranges):
-    denormed_dict_sigmoided[param_name] = warm_EQ_gains_normalized[i]
-init_params = m40b.denormalize_param_dict(denormed_dict_sigmoided)
-# print(f'sig --> back to raw (should be same): \n{init_params}')
-
 
 # --- testing funcitonal
 def testing_func_basic():
@@ -52,13 +22,13 @@ def testing_func_basic():
     output_tensor = functional_parametric_eq_40band(test_sig.samples, test_sig.sample_rate, *band_gains, q=q_value)
     print(output_tensor)
 
-def testing_functional(signal: AudioSignal, batch_size: int,freq_gains_dict: dict =EQ_gains_dict, word:str='none'):
+def run_functional_on_single_sig(sig_single: AudioSignal, batch_size: int,freq_gains_dict: dict, word:str='none'):
     m40b = ParametricEQ_40band(sample_rate=44100)
     channel = Channel(m40b)
 
     # Use GPU if available
     device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
-    signal = signal.to(device)
+    signal = sig_single.to(device)
     signal = AudioSignal.batch([signal] * batch_size)
 
     if word=='none':
@@ -68,16 +38,11 @@ def testing_functional(signal: AudioSignal, batch_size: int,freq_gains_dict: dic
         print(f'...getting parameters for {word}')
         param_single = torch.tensor(freq_gains_dict[word])*5 #make dict parameter
         params = param_single.expand(signal.batch_size, -1).to(device)
-    print(params)
-    # params = torch.randn(1, channel.num_params).expand(signal.batch_size, -1).to(device) #random params copied across batch size
-
-    # breakpoint()    
-    # Apply effect with out estimated parameters
     signal_effected_batch = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
 
     return signal_effected_batch
 
-def run_functional_on_batch(signal_batch, freq_gains_dict: dict =EQ_gains_dict, word:str='none'):
+def run_functional_on_batch(signal_batch, freq_gains_dict: dict, word:str='none'):
     m40b = ParametricEQ_40band(sample_rate=44100)
     channel = Channel(m40b)
 
@@ -92,26 +57,20 @@ def run_functional_on_batch(signal_batch, freq_gains_dict: dict =EQ_gains_dict, 
         print(f'...getting parameters for {word}')
         param_single = torch.tensor(freq_gains_dict[word])*5 #make dict parameter
         params = param_single.expand(signal.batch_size, -1).to(device)
-    # print(params)
-    # params = torch.randn(1, channel.num_params).expand(signal.batch_size, -1).to(device) #random params copied across batch size
 
-    # breakpoint()    
-    # Apply effect with out estimated parameters
     signal_effected_batch = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
-
     return signal_effected_batch
 
 def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
-    # save_dir = tc.create_save_dir(text, parent_dir_to_save_to)
+    # where text = word_target
     for i, s in enumerate(sig_batched):
-        # print(i, s)
         instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
         instrument_dir.mkdir(parents=True, exist_ok=True)
         # print(instrument_path)
         s.write(instrument_dir/f"{text}.wav")
         print(f'saved {i} of batch {sig_batched.batch_size}')
 
-def single_word_on_batch_sig(samples_dir: str, word: str='cold', gains_dict: dict = EQ_gains_dict):
+def single_word_on_batch_sig(samples_dir: str, gains_dict: dict, word: str='cold'):
     all_raw_sigs = tc.load_examples(samples_dir)
     signal_list = [tc.preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
     sig_batched = AudioSignal.batch(signal_list)
@@ -122,16 +81,18 @@ def single_word_on_batch_sig(samples_dir: str, word: str='cold', gains_dict: dic
 
 if __name__ == "__main__":
 
-    # testing_func_basic() # working
-    # raw_sig_path = f'assets/multistem_examples/10s/{audio_type}_10s.wav'
     test_ex_dir = Path('experiments/paramEQ_40')
     input_samples_dir = Path('assets/multistem_examples/10s')
-    # word_t = 'warm'
-    for word_t in EQ_gains_dict.keys():
-        out_sig_b = single_word_on_batch_sig(input_samples_dir, word_t, EQ_gains_dict)
-        save_sig_batch(out_sig_b, word_t, test_ex_dir/f'multirun')
+    aud_csv_path_EQ = NOTEBOOKS_DIR / 'audealize_data/eqdescriptors.json'
+    EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
 
+    EQ_words_other = ['crunch', 'dramatic', 'muffled']
+    other_EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_other)
 
+    for word_t in other_EQ_gains_dict.keys():
+        out_sig_b = single_word_on_batch_sig(input_samples_dir, other_EQ_gains_dict, word_t)
+        save_sig_batch(out_sig_b, word_t, test_ex_dir/f'multirun_other')
+    # print(other_EQ_gains_dict)
 
 ### old
 # top10_eq = EQ_words_top_10
