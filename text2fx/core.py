@@ -283,7 +283,7 @@ def slugify(value, allow_unicode=False):
     return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 
-def create_save_dir(text, sig, runs_dir):
+def create_save_dir(text, runs_dir):
     """ 
     Create a save folder for our current run.
     """

@@ -90,7 +90,7 @@ def text2fx(
 
     # a save dir for our goods
     if save_dir is None:
-        save_dir = create_save_dir(text, sig, RUNS_DIR)
+        save_dir = create_save_dir(text, RUNS_DIR)
     else:
         save_dir = Path(save_dir)
         save_dir.mkdir(exist_ok=True, parents=True)
