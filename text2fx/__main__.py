@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, create_save_dir
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, create_save_dir, preprocess_sig
 from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
 import matplotlib.pyplot as plt
@@ -108,8 +108,10 @@ def text2fx(
             torch.zeros(sig.batch_size, channel.num_params).to(device) 
         )
     elif params_init_type=='random':
+        params_single = torch.randn(1, channel.num_params).to(device) 
         params = torch.nn.parameter.Parameter(
-            torch.randn(sig.batch_size, channel.num_params).to(device) 
+            params_single.repeat(sig.batch_size, 1).to(device)
+            # torch.randn(sig.batch_size, channel.num_params).to(device) 
         )
     else:
         raise ValueError
@@ -134,7 +136,7 @@ def text2fx(
     optimizer = torch.optim.Adam([params], lr=lr)
 
     #preprocessing initial sample
-    sig = sig.resample(44100).normalize(-24) 
+    sig = preprocess_sig(sig)
 
     # log what our initial effect sounds like (w/ random parameters applied)
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
@@ -142,14 +144,15 @@ def text2fx(
         writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
 
-    sig.clone().cpu().write(save_dir / 'input.wav')
-    init_sig.clone().detach().cpu().write(save_dir / 'starting.wav')
+    # sig.clone().cpu().write(save_dir / 'input.wav')
+    for i, s in enumerate(init_sig):
+        init_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
-    embedding_target = clap.get_text_embeddings([text]).detach()
-    
+    embedding_target = clap.get_text_embeddings([f'this is a {text} sound']).detach()
+
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
-        text_anchor_emb = clap.get_text_embeddings([f"this sound is not {text}"]).detach()
+        text_anchor_emb = clap.get_text_embeddings([f"this is not a {text} sound"]).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
@@ -211,18 +214,16 @@ def text2fx(
         
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig.write(save_dir / "final.wav")
+    out_sig = preprocess_sig(out_sig)
+    for i, s in enumerate(out_sig):
+        out_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_final.wav')
 
-    # also exporting normalized output
-    # out_sig1 = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu().normalize(-24)
-    # out_sig1.write(save_dir / "final_normalized.wav")
+    # out_sig.write(save_dir / "final.wav")
 
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
 
-
-    
     return out_sig
 
 

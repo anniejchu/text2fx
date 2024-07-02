@@ -451,8 +451,10 @@ def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndar
         return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).normalize(-24)
     else: 
         raise ValueError("not tensor, str, path or array")
-        
     
+def preprocess_sig(audio_sig: AudioSignal) -> AudioSignal:
+    return audio_sig.to_mono().resample(SAMPLE_RATE).normalize(-24)
+
 def compare_loss_files_preprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
     baselineSig = preprocess_audio(file_baseline)
     compareSig = preprocess_audio(file_compare)
