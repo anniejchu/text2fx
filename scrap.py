@@ -77,43 +77,60 @@ def testing_functional(signal: AudioSignal, batch_size: int,freq_gains_dict: dic
 
     return signal_effected_batch
 
-def save_sig_batch(sig_batched, text, dir_to_save_to):
-    save_dir = tc.create_save_dir(text, dir_to_save_to)
+def run_functional_on_batch(signal_batch, freq_gains_dict: dict =EQ_gains_dict, word:str='none'):
+    m40b = ParametricEQ_40band(sample_rate=44100)
+    channel = Channel(m40b)
+
+    # Use GPU if available
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    signal = signal_batch.to(device)
+
+    if word=='none':
+        print(f'... setting random params')
+        params = torch.randn(signal.batch_size, channel.num_params).to(device)
+    else:
+        print(f'...getting parameters for {word}')
+        param_single = torch.tensor(freq_gains_dict[word])*5 #make dict parameter
+        params = param_single.expand(signal.batch_size, -1).to(device)
+    # print(params)
+    # params = torch.randn(1, channel.num_params).expand(signal.batch_size, -1).to(device) #random params copied across batch size
+
+    # breakpoint()    
+    # Apply effect with out estimated parameters
+    signal_effected_batch = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
+
+    return signal_effected_batch
+
+def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
+    # save_dir = tc.create_save_dir(text, parent_dir_to_save_to)
     for i, s in enumerate(sig_batched):
         # print(i, s)
-        s.write(save_dir/f"{i}_final_o.wav")
+        instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
+        instrument_dir.mkdir(parents=True, exist_ok=True)
+        # print(instrument_path)
+        s.write(instrument_dir/f"{text}.wav")
         print(f'saved {i} of batch {sig_batched.batch_size}')
 
-def single_word_on_batch_sig(samples_dir: str, word: str, gains_dict: dict = EQ_gains_dict):
-    all_raw_sigs = tc.load_examples(Path('assets/multistem_examples/10s'))
+def single_word_on_batch_sig(samples_dir: str, word: str='cold', gains_dict: dict = EQ_gains_dict):
+    all_raw_sigs = tc.load_examples(samples_dir)
     signal_list = [tc.preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
     sig_batched = AudioSignal.batch(signal_list)
+    out_sig_batch = run_functional_on_batch(sig_batched, gains_dict, word)
+    return out_sig_batch
+
 
 
 if __name__ == "__main__":
 
     # testing_func_basic() # working
-    batch_n = 4
-    audio_type = 'piano'
-    raw_sig_path = f'assets/multistem_examples/10s/{audio_type}_10s.wav'
+    # raw_sig_path = f'assets/multistem_examples/10s/{audio_type}_10s.wav'
     test_ex_dir = Path('experiments/paramEQ_40')
+    input_samples_dir = Path('assets/multistem_examples/10s')
+    # word_t = 'warm'
+    for word_t in EQ_gains_dict.keys():
+        out_sig_b = single_word_on_batch_sig(input_samples_dir, word_t, EQ_gains_dict)
+        save_sig_batch(out_sig_b, word_t, test_ex_dir/f'multirun')
 
-    word_t = 'warm'
-
-    all_raw_sigs = tc.load_examples(Path('assets/multistem_examples/10s'))
-    tc.printy(all_raw_sigs)
-    signal_list = [tc.preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
-    print(signal_list)
-    sig_batched = AudioSignal.batch(signal_list)
-    print(sig_batched.shape)
-    
-    EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
-    # breakpoint()
-    # print(EQ_gains_dict)
-
-    # test_sig = tc.preprocess_audio(raw_sig_path).to(DEVICE)
-    # out_sig_batch = testing_functional(test_sig, len(EQ_gains_dict), EQ_gains_dict, word_t)
-    # save_sig_batch(out_sig_batch, f'{audio_type}_{word_t}_bn_{batch_n}', test_ex_dir)
 
 
 ### old
