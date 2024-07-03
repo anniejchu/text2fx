@@ -50,7 +50,7 @@ def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text
     all_out={}
     save_dir = tc.create_save_dir(test_name, Path("experiments"))
 
-    for criterion in ("directional_loss", "cosine-sim"):
+    for criterion in ("cosine-sim",):
         for text_target in text_list:
             for param_type in ['zeros', 'random']:
             # Apply text2fx
@@ -79,11 +79,12 @@ if __name__ == "__main__":
         ParametricEQ_40band(sample_rate=SAMPLE_RATE)
         )
     input_samples_dir = Path('assets/multistem_examples/10s')
-    run_name = "6_band_directional_debugging"
+    run_name = "batch_sig_40_band_directional_debugging"
     
-    text_list = ['warm', 'bright']
+    text_list = ['warm']
     in_sig_batched = tc.wav_dir_to_batch(input_samples_dir)
-    out_sig_batched = test_text2fx_batch(channel, in_sig_batched, 'ms_clap', text_list=text_list,test_name=run_name)
+    in_sig_single = tc.preprocess_audio(Path('/home/annie/research/text2fx/assets/multistem_examples/10s/bass.wav'))
+    out_sig_batched = test_text2fx_batch(channel_40_band, in_sig_batched, 'ms_clap', text_list=text_list,test_name=run_name)
     print(out_sig_batched)
 
 #     #--- Testing other
