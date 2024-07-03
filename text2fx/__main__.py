@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_sig
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio
 from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
 
@@ -80,6 +80,8 @@ def text2fx(
     seed_i: int = 0,
     roll: str = 'all',
     roll_amt: int = 1000,
+    export_audio: bool = False,
+    log_tensorboard: bool = False,
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     # prevents loading the model everytime w/o needing to set it first as global variable
@@ -88,18 +90,21 @@ def text2fx(
     clap = get_model(model_name)
 
     # a save dir for our goods
-    if save_dir is None:
-        save_dir = create_save_dir(text, RUNS_DIR)
-    else:
-        save_dir = Path(save_dir)
-        save_dir.mkdir(exist_ok=True, parents=True)
-    print(save_dir)
+    if log_tensorboard or export_audio:
+        if save_dir is None:
+            save_dir = create_save_dir(text, RUNS_DIR)
+        else:
+            save_dir = Path(save_dir)
+            save_dir.mkdir(exist_ok=True, parents=True)
+    # print(save_dir)
 
     # create a writer for saving stuff to tensorboard
-    writer_dir = save_dir / "logs"
-    writer_dir.mkdir(exist_ok=True)
-    writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
-
+    if log_tensorboard:
+        writer_dir = save_dir / "logs"
+        writer_dir.mkdir(exist_ok=True)
+        writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
+    else:
+        writer = False
     # params!
     # NOTE: these aren't actually initialized to "zeros" since the we'll apply a sigmoid which will shift this up right? 
     if params_init_type=='zeros':
@@ -116,27 +121,28 @@ def text2fx(
         raise ValueError
     
     # Log the model, torch amount, starting parameters, and their values
-    log_file = save_dir / f"experiment_log.txt"
-    with open(log_file, "w") as log:
-        log.write(f"Model: {model_name}\n")
-        log.write(f"Channel: {channel.modules}\n")
-        log.write(f"Learning Rate: {lr}\n")
-        log.write(f"Number of Iterations: {n_iters}\n")
-        log.write(f"Criterion: {criterion}\n")
-        log.write(f"Params Initialization Type: {params_init_type}\n")
-        log.write(f"Seed: {seed_i}\n")
-        log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
-        log.write(f"Starting Params Values (post sigmoid): {torch.sigmoid(params).data.cpu().numpy()}\n")
+    if log_tensorboard or export_audio:
+        log_file = save_dir / f"experiment_log.txt"
+        with open(log_file, "w") as log:
+            log.write(f"Model: {model_name}\n")
+            log.write(f"Channel: {channel.modules}\n")
+            log.write(f"Learning Rate: {lr}\n")
+            log.write(f"Number of Iterations: {n_iters}\n")
+            log.write(f"Criterion: {criterion}\n")
+            log.write(f"Params Initialization Type: {params_init_type}\n")
+            log.write(f"Seed: {seed_i}\n")
+            log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
+            log.write(f"Starting Params Values (post sigmoid): {torch.sigmoid(params).data.cpu().numpy()}\n")
 
-        log.write(f"roll?: {roll}, if custom: range is +/-{roll_amt}\n")
-        log.write("="*40 + "\n")
+            log.write(f"roll?: {roll}, if custom: range is +/-{roll_amt}\n")
+            log.write("="*40 + "\n")
 
     params.requires_grad=True
     # the optimizer!
     optimizer = torch.optim.Adam([params], lr=lr)
 
     #preprocessing initial sample
-    sig = preprocess_sig(sig)
+    sig = preprocess_audio(sig)
 
     # log what our initial effect sounds like (w/ random parameters applied)
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
@@ -145,14 +151,15 @@ def text2fx(
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
 
     # sig.clone().cpu().write(save_dir / 'input.wav')
-    for i, s in enumerate(init_sig):
-        init_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
+    # if export_audio: #starting audio
+    #     for i, s in enumerate(init_sig):
+    #         init_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
-    embedding_target = clap.get_text_embeddings([f'this is a {text} sound']).detach()
+    embedding_target = clap.get_text_embeddings([f'this is a {text} sound']*sig.batch_size).detach()
 
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
-        text_anchor_emb = clap.get_text_embeddings([f"this is not a {text} sound"]).detach()
+        text_anchor_emb = clap.get_text_embeddings([f"this is not a {text} sound"]*sig.batch_size).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
@@ -169,9 +176,10 @@ def text2fx(
             roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
         else:
             raise ValueError('choose roll amount')
-
-        with open(log_file, "a") as log:
-            log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
+        
+        if log_tensorboard or export_audio:
+            with open(log_file, "a") as log:
+                log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
 
         for i in range(sig_roll.batch_size):
             # breakpoint()
@@ -183,14 +191,15 @@ def text2fx(
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
+        # breakpoint()
 
         # loss
         if criterion == "directional_loss":
-            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).sum()
+            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).mean()
         elif criterion == "standard": #is neg dot product loss aims to minimize the dot prod b/w dissimilar items, no direction intake
-            loss = -(embedding_effected @ embedding_target.T).sum()
+            loss = -(embedding_effected @ embedding_target.T).mean()
         elif criterion == "cosine-sim": # cosine_sim loss aims to maximize the cosine similarity between similar items, normalized
-            loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).sum()
+            loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).mean()
         else:
             raise ValueError(f"Criterion {criterion} not recognized")
         if writer: 
@@ -203,20 +212,23 @@ def text2fx(
 
         pbar.set_description(f"step: {n+1}/{n_iters}, loss: {loss.item():.3f}")
 
-        if n % log_audio_every_n == 0:
-            # Save audio
-            signal_effected.detach().cpu().ensure_max_of_audio().write_audio_to_tb("effected", writer, n)
-            if writer:
-                writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
-
-    with open(log_file, "a") as log:
-        log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
+        if log_tensorboard:
+            if n % log_audio_every_n == 0:
+                # Save audio
+                signal_effected.detach().cpu().ensure_max_of_audio().write_audio_to_tb("effected", writer, n)
+                if writer:
+                    writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
         
+    if log_tensorboard or export_audio:
+        with open(log_file, "a") as log:
+            log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
+            
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig = preprocess_sig(out_sig)
-    for i, s in enumerate(out_sig):
-        out_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_final.wav')
+    out_sig = preprocess_audio(out_sig)
+    if export_audio:
+        for i, s in enumerate(out_sig):
+            out_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_final.wav')
 
     # out_sig.write(save_dir / "final.wav")
 
@@ -243,6 +255,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed_i", type=int, default=1, help="enter a number seed start")
     parser.add_argument("--roll", type=str, default='all', help="to roll or not to roll")
     parser.add_argument("--roll_amt", type=int, default=1000, help="range of # of samples for rolling action")
+    parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
+    parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
 
 
     args = parser.parse_args()
@@ -259,6 +273,7 @@ if __name__ == "__main__":
         params_init_type=args.params_init_type,
         seed_i=args.seed_i,
         roll=args.roll,
-        roll_amt=args.roll_amt
-
+        roll_amt=args.roll_amt,
+        export_audio=args.export_audio,
+        log_tensorboard=args.log_tensorboard
     )

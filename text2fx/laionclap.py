@@ -98,6 +98,10 @@ class LAIONCLAPWrapper(AbstractCLAPWrapper):
 
         return self.model.get_text_embedding(text_padded, use_tensor=True)[:-1]
     
+    # TODO: implement
+    # def compute_similarities(self, audio_emb, text_emb) -> torch.Tensor:
+    #     return self.model.compute_similarities(audio_emb, text_emb)
+    
     @property
     def sample_rate(self):
         return self.CLAP_SAMPLE_RATE 

@@ -43,6 +43,9 @@ class AbstractCLAPWrapper:
     def get_text_embeddings(self, text: Union[str, List[str]]) -> torch.Tensor:
         raise NotImplementedError()
     
+    def compute_similarities(self, audio_emb, text_emb) -> torch.Tensor:
+        raise NotImplementedError
+    
     @property
     def sample_rate(self):
         raise NotImplementedError()
@@ -436,32 +439,31 @@ def convert_to_tensors(converted_settings):
     return tensor_settings
 
 # probably return tensor instead of audiosig for easier batching
-def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray], sample_rate: Optional[int] = None) -> AudioSignal:
+def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], sample_rate: Optional[int] = None) -> AudioSignal:
     #audio can be filename or AudioSignal; if tensor, must provide sample_rate
     if isinstance(audio_path_or_array, (str, Path)):
         return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).normalize(-24)
+    elif isinstance(audio_path_or_array, AudioSignal):
+        return audio_path_or_array.to_mono().resample(SAMPLE_RATE).normalize(-24)
     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
+        if sample_rate is None:
+            raise ValueError("Must provide sample_rate if input is a tensor or ndarray")
         return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).normalize(-24)
     else: 
-        raise ValueError("not tensor, str, path or array")
+        raise ValueError("not audiosignal, tensor, str, path or array")
     
-def preprocess_sig(audio_sig: AudioSignal) -> AudioSignal:
-    return audio_sig.to_mono().resample(SAMPLE_RATE).normalize(-24)
+def preprocess_export_audiodir(dir_path, out_dir_path):
+    for file in load_examples(dir_path):
+        x = preprocess_audio(file)
+        out_dir_path.mkdir(parents=True, exist_ok=True)
+        x.write(out_dir_path / f'{file.stem}_preprocessed.wav')
 
 def compare_loss_files_preprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
     baselineSig = preprocess_audio(file_baseline)
     compareSig = preprocess_audio(file_compare)
-    # baselineSig = AudioSignal(file_baseline).to_mono().resample(44100).normalize(-24)
-    # outSig = AudioSignal(file_compare).to_mono().resample(44100).normalize(-24)
     loss = loss_funct(baselineSig.samples, compareSig.samples)
-    
     return loss
 
-def compare_loss_files_unprocessed(file_baseline, file_compare, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
-    baselineSig = AudioSignal(file_baseline).to_mono().resample(44100)
-    outSig = AudioSignal(file_compare).to_mono().resample(44100)
-    loss = loss_funct(baselineSig.samples, outSig.samples) 
-    return loss
 
 def calculate_auraloss_sigs(sig1, sig2, loss_funct=auraloss.freq.MultiResolutionSTFTLoss()):
     loss = loss_funct(sig1.samples, sig2.samples) 
@@ -546,7 +548,7 @@ def apply_multi_word_EQ_to_batch(signal_batch: AudioSignal, word_list: List[str]
         print(f'applied {word_i} EQ settings to batch...')
         out_sig_dict[word_i] = out_sig_i
         if export_dir is not None:
-            save_sig_batch(preprocess_sig(out_sig_i), word_i, export_dir)# test_ex_dir/f'multirun_1')
+            save_sig_batch(preprocess_audio(out_sig_i), word_i, export_dir)# test_ex_dir/f'multirun_1')
 
     return out_sig_dict
 
@@ -571,3 +573,4 @@ def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
         # print(instrument_path)
         s.write(instrument_dir/f"{text}.wav")
         print(f'saved {i} of batch {sig_batched.batch_size}')
+

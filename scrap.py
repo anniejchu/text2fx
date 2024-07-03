@@ -46,61 +46,52 @@ def apply_single_word_EQ_to_sig(sig_single: AudioSignal, batch_size: int,freq_ga
     return signal_effected_batch
 
 # testing CLAP optimization
-def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, test_name: str):
-    all_out=[]
-    # save_text = "test5_this_is_a_X_sound_random"
+def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text_list: List[str], test_name: str):
+    all_out={}
     save_dir = tc.create_save_dir(test_name, Path("experiments"))
+
     for criterion in ("directional_loss", "cosine-sim"):
-        for text_target in ["warm", "bright", "deep"]:
-        # Apply text2fx
-            signal_effected = text2fx(
-                model_name=model_name, 
-                sig=in_sig_batch, 
-                text=text_target, 
-                channel=channel,
-                criterion=criterion, 
-                save_dir=save_dir / text_target / criterion,
-                params_init_type='random',
-                seed_i=3,
-                roll='all',
-                # roll_amt=10000
-            )
-            all_out.append(signal_effected)
+        for text_target in text_list:
+            for param_type in ['zeros', 'random']:
+            # Apply text2fx
+                print(f'starting {criterion}, {text_target}, {param_type}')
+                signal_effected = text2fx(
+                    model_name=model_name, 
+                    sig=in_sig_batch, 
+                    text=text_target, 
+                    channel=channel,
+                    criterion=criterion, 
+                    save_dir=save_dir / text_target / f'{criterion}_{param_type}',
+                    params_init_type=param_type,
+                    seed_i=3,
+                    roll='all',
+                    # roll_amt=10000
+                    export_audio=True,
+                    log_tensorboard=True
+                )
+                all_out[text_target] = signal_effected
     return all_out
 
 if __name__ == "__main__":
-    # m40b = ParametricEQ_40band(sample_rate=SAMPLE_RATE)
-    # channel_40_band = Channel(
-    #     m40b
-    #     )
-    # print(channel_40_band.modules)
-    # input_samples_dir = Path('assets/multistem_examples/10s')
-    # in_sig_batched = wav_dir_to_batch(input_samples_dir)
-    # print(in_sig_batched.batch_size)
+    channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
 
-    # run_name = "this_is_a_X_sound_random"
-    # out = test_text2fx_batch(channel_40_band, in_sig_batched, 'ms_clap', test_name=run_name)
-    # print(out)
-    #--- Testing other
-    #constants
-    test_ex_dir = Path('experiments/2024-07-03/OTHER')
+    channel_40_band = Channel(
+        ParametricEQ_40band(sample_rate=SAMPLE_RATE)
+        )
     input_samples_dir = Path('assets/multistem_examples/10s')
-
-    #vary
-    w_list = ['crunch', 'dramatic', 'muffled']
-    w_list_out = tc.apply_multi_word_EQ_to_dir(input_samples_dir, w_list, export_dir=test_ex_dir)
-    print(w_list_out)
+    run_name = "6_band_directional_debugging"
     
-    freq_gains_dict = tc.get_settings_for_words(EQ_GAINS_PATH, w_list[0])
-    print(freq_gains_dict)
-    # test_ex_dir = Path('experiments/paramEQ_40')
-    # input_samples_dir = Path('assets/multistem_examples/10s')
-    # aud_csv_path_EQ = NOTEBOOKS_DIR / 'audealize_data/eqdescriptors.json'
-    # EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_top_10)
+    text_list = ['warm', 'bright']
+    in_sig_batched = tc.wav_dir_to_batch(input_samples_dir)
+    out_sig_batched = test_text2fx_batch(channel, in_sig_batched, 'ms_clap', text_list=text_list,test_name=run_name)
+    print(out_sig_batched)
 
-    # # other_EQ_gains_dict = tc.get_settings_for_words(aud_csv_path_EQ, EQ_words_other)
+#     #--- Testing other
+#     # #constants
+#     test_ex_dir = Path('experiments/2024-07-03/OTHER_1')
+#     # input_samples_dir = Path('assets/multistem_examples/10s')
 
-    # for word_t in EQ_gains_dict.keys():
-    #     out_sig_b = single_word_on_batch_sig(input_samples_dir, EQ_gains_dict, word_t)
-    #     save_sig_batch(tc.preprocess_sig(out_sig_b), word_t, test_ex_dir/f'multirun_1')
-    # # print(other_EQ_gains_dict)
+#     # #vary
+#     # w_list = ['crunch', 'dramatic', 'muffled']
+#     # w_list_out = tc.apply_multi_word_EQ_to_dir(input_samples_dir, text_list, export_dir=test_ex_dir)
+#     # print(w_list_out)

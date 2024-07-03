@@ -89,6 +89,9 @@ class MSCLAPWrapper(AbstractCLAPWrapper):
 
     def get_text_embeddings(self, texts) -> torch.Tensor:
         return self.clap_model.get_text_embeddings(texts)
+    
+    def compute_similarities(self, audio_emb, text_emb) -> torch.Tensor:
+        return self.clap_model.compute_similarities(audio_emb, text_emb)
 
     @property
     def sample_rate(self):
