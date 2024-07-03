@@ -11,10 +11,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, load_audio_examples, create_save_dir, preprocess_sig
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_sig
 from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
-import matplotlib.pyplot as plt
 
 """
 EX CLI USAGE
@@ -118,8 +117,9 @@ def text2fx(
     
     # Log the model, torch amount, starting parameters, and their values
     log_file = save_dir / f"experiment_log.txt"
-    with open(log_file, "a") as log:
+    with open(log_file, "w") as log:
         log.write(f"Model: {model_name}\n")
+        log.write(f"Channel: {channel.modules}\n")
         log.write(f"Learning Rate: {lr}\n")
         log.write(f"Number of Iterations: {n_iters}\n")
         log.write(f"Criterion: {criterion}\n")
@@ -247,13 +247,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+    # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
 
     text2fx(
         model_name=args.model_name, 
         sig=AudioSignal(args.input_audio), 
         text=args.text, 
-        channel=channel,
+        channel=args.channel,
         criterion=args.criterion, 
         save_dir=args.save_dir,
         params_init_type=args.params_init_type,

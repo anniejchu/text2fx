@@ -6,7 +6,7 @@ import random
 import json
 import os
 from pathlib import Path
-from typing import Union, List, Optional, Tuple, Iterable
+from typing import Union, List, Optional, Tuple, Iterable, Dict
 
 import torch
 import torchaudio.transforms as T
@@ -22,7 +22,7 @@ import dasp_pytorch
 import auraloss
 from functools import partial
 
-from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE
+from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH
 
 """
 EX CLI USAGE
@@ -236,14 +236,7 @@ def dasp_apply_EQ_file(file_name, freqs, Q=4.31): #process function
 
     return out_audiosig
 
-def load_audio_examples():
-    # Load audio examples
-    exts = ["mp3", "wav", "flac"]
-    example_files = [list(ASSETS_DIR.rglob(f"*.{e}")) for e in exts]
-    example_files = sum(example_files, [])  # Trick to flatten list of lists
-    return example_files
-
-def load_examples(dir_path):
+def load_examples(dir_path: Path) -> List[Path]:
     exts = ["mp3", "wav", "flac"]
     example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
     example_files = sum(example_files, [])  # Trick to flatten list of lists
@@ -513,3 +506,68 @@ def printy(path_dir: Union[Path, List[Path]]):
             print(path)
     else:
         print(path_dir)
+
+#
+# convert a directory of audio examples to a single batched_AudioSignal
+def wav_dir_to_batch(samples_dir) -> AudioSignal:
+    all_raw_sigs = load_examples(samples_dir)
+    signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
+    sig_batched = AudioSignal.batch(signal_list)
+    return sig_batched
+
+# applying single word EQ params (e.g. 'warm') on a batched AudioSignal
+def apply_single_word_EQ_to_batch(signal_batch: AudioSignal, word: str = 'none'):
+    m40b = ParametricEQ_40band(sample_rate=44100)
+    channel = Channel(m40b)
+    freq_gains_dict = get_settings_for_words(EQ_GAINS_PATH, [word])
+    # Use GPU if available
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    signal = signal_batch.to(device)
+
+    if word=='none':
+        print(f'... setting random params')
+        params = torch.randn(signal.batch_size, channel.num_params).to(device)
+    else:
+        print(f'...getting parameters for {word}')
+        param_single = torch.tensor(freq_gains_dict[word])*5 #make dict parameter
+        # print(f'got it: {freq_gains_dict[word]}')
+
+        params = param_single.expand(signal.batch_size, -1).to(device)
+
+    signal_effected_batch = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
+    return signal_effected_batch
+
+# applying list of words EQ params (e.g. ['warm', 'cool]) on a batched AudioSignal
+def apply_multi_word_EQ_to_batch(signal_batch: AudioSignal, word_list: List[str], export_dir: Path = None):
+    out_sig_dict = {}
+    freq_gains_dict = get_settings_for_words(EQ_GAINS_PATH, word_list)
+    for word_i in word_list:
+        out_sig_i = apply_single_word_EQ_to_batch(signal_batch, word_i)
+        print(f'applied {word_i} EQ settings to batch...')
+        out_sig_dict[word_i] = out_sig_i
+        if export_dir is not None:
+            save_sig_batch(preprocess_sig(out_sig_i), word_i, export_dir)# test_ex_dir/f'multirun_1')
+
+    return out_sig_dict
+
+# applying single word EQ params (e.g. 'warm') directly on a dir of .wavs
+def apply_single_word_EQ_to_dir(samples_dir: Path, word: str) -> AudioSignal:
+    in_sig_batch = wav_dir_to_batch(samples_dir)
+    out_sig_batch = apply_single_word_EQ_to_batch(in_sig_batch, word)
+    return out_sig_batch
+
+# applying list of words EQ params (e.g. ['warm', 'cool])directly on a dir of .wavs
+def apply_multi_word_EQ_to_dir(samples_dir: Path, word_list: List[str], export_dir: Path = None) -> Dict[str, AudioSignal]:
+    in_sig_batch = wav_dir_to_batch(samples_dir)
+    out_sig_dict = apply_multi_word_EQ_to_batch(in_sig_batch, word_list, export_dir)
+    return out_sig_dict #returns dict of d[word] = EQ'd batch_AudioSignal
+
+# saving a batch_sig to folder of /text/.wavs 
+def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
+    # where text = word_target
+    for i, s in enumerate(sig_batched):
+        instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
+        instrument_dir.mkdir(parents=True, exist_ok=True)
+        # print(instrument_path)
+        s.write(instrument_dir/f"{text}.wav")
+        print(f'saved {i} of batch {sig_batched.batch_size}')

@@ -17,7 +17,8 @@ from torch.utils.tensorboard import SummaryWriter
 from msclap import CLAP
 
 import matplotlib.pyplot as plt
-from text2fx.core import AbstractCLAPWrapper, download_file, PRETRAINED_DIR, DEVICE
+from text2fx.core import AbstractCLAPWrapper, download_file 
+from text2fx.constants import PRETRAINED_DIR, DEVICE
 
 
 #REQUIRES TRANSFORMERS >= 4.34.0
