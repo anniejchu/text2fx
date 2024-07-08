@@ -89,6 +89,9 @@ def main(audio_dir: Union[str, Path],
         export_audio_path = Path(export_dir) / f'final_audio_{i}_{audio_path.stem}_{description}.wav'
 
         print(f' ------ text2fx-ing {audio_path.stem}, {description}')
+        #TODO: ADD RETURNED VALUES OF process_file_main TO LIST? 
+        #TODO: SWITCH TO BATCHING INSTEAD OF SEQUENTIAL
+        #TODO: MAKE EXPORTING OPTIONAL
         process_file_main(
             audio_path=audio_path,
             fx_chain=fx_chain,
