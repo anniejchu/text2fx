@@ -11,7 +11,7 @@ import torch
 import text2fx.core as tc
 from text2fx.core import ParametricEQ_40band, Channel, functional_parametric_eq_40band
 from text2fx.constants import EQ_freq_bands, EQ_words_top_10, NOTEBOOKS_DIR, SAMPLE_RATE, DEVICE, EQ_GAINS_PATH
-from text2fx.__main__ import text2fx
+from text2fx.__main__ import text2fx, get_default_channel
 
 # --- testing funcitonal
 def testing_func_basic():
@@ -76,14 +76,14 @@ def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text
     return all_out, sig_effected_params
 
 
-def singletest(in_sig, text_target, channel, save_dir):
+def singletest(in_sig, text_target, channel, save_dir=None):
     signal_effected, sig_effected_params = text2fx(
             model_name='ms_clap', 
             sig=in_sig, 
             text=text_target, 
             channel=channel,
             criterion='cosine-sim', 
-            save_dir=save_dir / text_target / f'paramdict',
+            # save_dir=save_dir / text_target / f'paramdict',
             params_init_type='random',
             seed_i=3, # get rid of this
             roll='all', # consolidate this
@@ -94,9 +94,15 @@ def singletest(in_sig, text_target, channel, save_dir):
     )
     print(signal_effected, sig_effected_params)
     return signal_effected, sig_effected_params
-def testingdict(batch_size = 2):
 
-    channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+def testingdict(batch_size = 4):
+
+    # channel = Channel(
+    #     dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
+        
+    #     )
+    
+    channel = get_default_channel()
     # Input signal
     in_sig_single = tc.preprocess_audio(Path('/home/annie/research/text2fx/assets/multistem_examples/10s/bass.wav'))
     # Use GPU if available
@@ -104,13 +110,13 @@ def testingdict(batch_size = 2):
     signal = in_sig_single.to(device)
     # Batching it for texting
     in_sig_batched = AudioSignal.batch([signal] * batch_size)
-    all_out, out_sig_and_params = singletest(in_sig_batched, 'warm', channel, save_dir=Path("experiments/2024-07-08"))
+    all_out, out_sig_and_params = singletest(in_sig_batched, 'cold', channel)
     print(f'sig  -->{all_out}')
 
     print(f' out params in list{out_sig_and_params}\n')
 
     print('saving params to dict')
-    params_dict = channel.save_params_to_dict(out_sig_and_params)
+    params_dict = channel.save_params_to_dict(out_sig_and_params, save_path='experiments/2024-07-08/cold-multichannel.json')
     print(params_dict)
     #
 
