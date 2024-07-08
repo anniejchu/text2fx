@@ -9,6 +9,7 @@ from text2fx.__main__ import text2fx
 from text2fx.constants import DEVICE, SAMPLE_RATE
 import torch
 import json
+import argparse
 
 """
 Applies effects to an audio file based on parameters from a JSON dictionary.
@@ -33,9 +34,24 @@ def apply_effects(audio_file: Union[str, Path], params_dict_path: Union[str, Pat
 
     tc.export_sig(out_sig, export_path)
     
+    return out_sig
 
-apply_effects(
-    audio_file='assets/multistem_examples/10s/vocals.wav',
-    params_dict_path='experiments/2024-07-08/process_FILES_test/output_0_bass_happy.json',
-    export_path='experiments/2024-07-08/process_from_params/output_single.wav'
-)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Apply effects to an audio file based on parameters in a JSON file and export the processed file.")
+    
+    parser.add_argument('--audio_file', type=str, required=True, help="Path to the input audio file.")
+    parser.add_argument('--params_dict_path', type=str, required=True, help="Path to the JSON file containing effect parameters.")
+    parser.add_argument('--export_path', type=str, required=True, help="Path to save the processed audio file.")
+
+    args = parser.parse_args()
+
+    apply_effects(
+        audio_file=args.audio_file,
+        params_dict_path=args.params_dict_path,
+        export_path=args.export_path
+    )
+
+#python process_file_from_params.py --audio_file assets/multistem_examples/10s/vocals.wav \
+# --params_dict_path experiments/2024-07-08/process_FILES_test/output_0_bass_happy.json \
+# --export_path experiments/2024-07-08/process_from_params/output_single.wav
