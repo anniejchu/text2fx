@@ -120,6 +120,7 @@ def text2fx(
     else:
         raise ValueError
     
+    # breakpoint()
     # Log the model, torch amount, starting parameters, and their values
     if log_tensorboard or export_audio:
         log_file = save_dir / f"experiment_log.txt"
@@ -222,7 +223,7 @@ def text2fx(
     if log_tensorboard or export_audio:
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
-            
+    # breakpoint()
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
     out_sig = preprocess_audio(out_sig)
@@ -240,7 +241,7 @@ def text2fx(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
 
-    return out_sig, params
+    return out_sig, params.detach()
 
 
 if __name__ == "__main__":

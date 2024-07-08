@@ -135,11 +135,12 @@ class Channel(torch.nn.Module):
             # Extracting respective params for each module in Channel
             _params = params[:, params_count: params_count + m.num_params]
             params_count += m.num_params
-
+            # breakpoint()
             # Normalizing them before extracting param_dict
-            _params_min_vals = _params.min(dim=0).values
-            _params_max_vals = _params.max(dim=0).values
-            _params_normalized = normalize(_params, _params_min_vals, _params_max_vals)
+            # _params_min_vals = _params.min(dim=0).values
+            # _params_max_vals = _params.max(dim=0).values
+            # _params_normalized = normalize(_params, _params_min_vals, _params_max_vals)
+            _params_normalized = torch.sigmoid(_params)
 
             raw_param_dict = m.extract_param_dict(_params_normalized)
             # breakpoint()
@@ -606,3 +607,52 @@ def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
         s.write(instrument_dir/f"{text}.wav")
         print(f'saved {i} of batch {sig_batched.batch_size}')
 
+
+def create_channel(fx_chain, sr=SAMPLE_RATE):
+    module_map = {
+        'gain': dasp_pytorch.Gain,
+        'distortion': Distortion,
+        'parametric equalizer': dasp_pytorch.ParametricEQ,
+        'eq': dasp_pytorch.ParametricEQ,
+        'dynamic range compressor': dasp_pytorch.Compressor,
+        'reverb': dasp_pytorch.NoiseShapedReverb,
+        'compressor': dasp_pytorch.Compressor,
+        'eq40': ParametricEQ_40band,
+    }
+
+    modules = []
+    for fx in fx_chain:
+        fx_name = fx.lower()
+        if fx_name in module_map:
+            modules.append(module_map[fx_name](sample_rate=sr))
+        else:
+            raise ValueError(f"Unsupported FX: {fx}")
+
+    return Channel(*modules)
+
+def export_sig(out_sig, save_path):
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    if out_sig.batch_size == 1:
+        out_sig.clone().detach().cpu().write(save_path)
+    else:
+        for i, s in enumerate(out_sig):
+            if save_path.endswith('.wav'):
+                base_path = save_path[:-4]  # Remove .wav extension
+                extension = '.wav'
+            else:
+                base_path = save_path
+                extension = ''
+            out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
+
+def save_dict_to_json(params_dict, save_path):
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Convert tensors to lists (JSON serializable format)
+    json_serializable_dict = {
+        key: {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in value.items()}
+        for key, value in params_dict.items()
+    }
+    # Save the dictionary to JSON file
+    with open(save_path, 'w') as f:
+        json.dump(json_serializable_dict, f, indent=4)
