@@ -77,16 +77,16 @@ def text2fx(
     criterion: str = "standard", 
     save_dir: str = None, # figure out a save path automatically,
     params_init_type: str = "zeros",
-    seed_i: int = 0,
-    roll: str = 'all',
-    roll_amt: int = 1000,
+    # seed_i: int = 0,
+    roll_amt: int = None,
     export_audio: bool = False,
     log_tensorboard: bool = False,
 ):
     # ah yes, the max morrison trick of hiding global variables as function members
     # prevents loading the model everytime w/o needing to set it first as global variable
     # if model=='ms_clap':
-    at.util.seed(seed_i)
+    # at.util.seed(seed_i) # for doing fixing random parameters
+
     clap = get_model(model_name)
 
     # a save dir for our goods
@@ -130,11 +130,10 @@ def text2fx(
             log.write(f"Number of Iterations: {n_iters}\n")
             log.write(f"Criterion: {criterion}\n")
             log.write(f"Params Initialization Type: {params_init_type}\n")
-            log.write(f"Seed: {seed_i}\n")
             log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
             log.write(f"Starting Params Values (post sigmoid): {torch.sigmoid(params).data.cpu().numpy()}\n")
 
-            log.write(f"roll?: {roll}, if custom: range is +/-{roll_amt}\n")
+            log.write(f"Custom roll?: {roll_amt}\n")
             log.write("="*40 + "\n")
 
     params.requires_grad=True
@@ -173,15 +172,11 @@ def text2fx(
         # Apply effect with out estimated parameters
         sig_roll = sig.clone()
 
-        if roll == 'none':
-            roll_amount = torch.zeros(sig_roll.batch_size, dtype=torch.int64)
-        elif roll == 'custom':
-            roll_amount = torch.randint(-roll_amt, roll_amt, (sig_roll.batch_size,))
-        elif roll == 'all':
-            roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
+        if roll_amt is not None:
+            roll_amount = torch.randint(-roll_amt, roll_amt + 1, (sig_roll.batch_size,))
         else:
-            raise ValueError('choose roll amount')
-        
+            roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
+
         if log_tensorboard or export_audio:
             with open(log_file, "a") as log:
                 log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
@@ -261,9 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
     parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
-    parser.add_argument("--seed_i", type=int, default=1, help="enter a number seed start")
-    parser.add_argument("--roll", type=str, default='all', help="to roll or not to roll")
-    parser.add_argument("--roll_amt", type=int, default=1000, help="range of # of samples for rolling action")
+    parser.add_argument("--roll_amt", type=int, default=None, help="range of # of samples for rolling action")
     parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
     parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
 
@@ -280,8 +273,6 @@ if __name__ == "__main__":
         criterion=args.criterion, 
         save_dir=args.save_dir,
         params_init_type=args.params_init_type,
-        seed_i=args.seed_i,
-        roll=args.roll,
         roll_amt=args.roll_amt,
         export_audio=args.export_audio,
         log_tensorboard=args.log_tensorboard

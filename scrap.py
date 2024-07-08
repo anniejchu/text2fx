@@ -85,24 +85,22 @@ def singletest(in_sig, text_target, channel, save_dir=None):
             criterion='cosine-sim', 
             # save_dir=save_dir / text_target / f'paramdict',
             params_init_type='random',
-            seed_i=3, # get rid of this
-            roll='all', # consolidate this
             n_iters=50,
-            # roll_amt=10000
+            # roll_amt=0,
             # export_audio=False,
             log_tensorboard=True
     )
     print(signal_effected, sig_effected_params)
     return signal_effected, sig_effected_params
 
-def testingdict(batch_size = 4):
+def testingdict(batch_size = 2):
 
-    # channel = Channel(
-    #     dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
+    channel = Channel(
+        dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
         
-    #     )
+        )
     
-    channel = get_default_channel()
+    # channel = get_default_channel()
     # Input signal
     in_sig_single = tc.preprocess_audio(Path('/home/annie/research/text2fx/assets/multistem_examples/10s/bass.wav'))
     # Use GPU if available
@@ -116,7 +114,7 @@ def testingdict(batch_size = 4):
     print(f' out params in list{out_sig_and_params}\n')
 
     print('saving params to dict')
-    params_dict = channel.save_params_to_dict(out_sig_and_params, save_path='experiments/2024-07-08/cold-multichannel.json')
+    params_dict = channel.save_params_to_dict(out_sig_and_params)
     print(params_dict)
     #
 

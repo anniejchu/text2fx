@@ -145,11 +145,11 @@ class Channel(torch.nn.Module):
             # breakpoint()
             denorm_param_dict = m.denormalize_param_dict(raw_param_dict)
 
-            denorm_param_dict = {k: v.tolist() for k, v in denorm_param_dict.items()}
+            # denorm_param_dict = {k: v.tolist() for k, v in denorm_param_dict.items()}
             all_params[m.__class__.__name__] = denorm_param_dict
 
-        with open(save_path, 'w') as f:
-            json.dump(all_params, f, indent=4)
+        # with open(save_path, 'w') as f:
+        #     json.dump(all_params, f, indent=4)
 
         return all_params
     
