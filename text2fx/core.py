@@ -612,10 +612,12 @@ def create_channel(fx_chain, sr=SAMPLE_RATE):
     module_map = {
         'gain': dasp_pytorch.Gain,
         'distortion': Distortion,
+        'parametriceq': dasp_pytorch.ParametricEQ,
         'parametric equalizer': dasp_pytorch.ParametricEQ,
         'eq': dasp_pytorch.ParametricEQ,
         'dynamic range compressor': dasp_pytorch.Compressor,
         'reverb': dasp_pytorch.NoiseShapedReverb,
+        'noiseshapedreverb': dasp_pytorch.NoiseShapedReverb,
         'compressor': dasp_pytorch.Compressor,
         'eq40': ParametricEQ_40band,
     }
