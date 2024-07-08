@@ -23,7 +23,7 @@ import auraloss
 from functools import partial
 
 from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH
-
+from dasp_pytorch.modules import normalize
 """
 EX CLI USAGE
 python text2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"\
@@ -120,7 +120,36 @@ class Channel(torch.nn.Module):
             
         return output.resample(signal.sample_rate)  # Restore original sample rate
 
+    def save_params_to_dict(self, params: torch.Tensor, save_path:str=None) -> dict:
+        """Save parameter tensors for each module to structured dictionaries.
 
+        Args:
+            params (torch.Tensor): The parameter tensor.
+
+        Returns:
+            dict: Structured dictionary of parameter tensors for each module.
+        """
+        all_params = {}
+        params_count = 0
+        for m in self.modules:
+            # Extracting respective params for each module in Channel
+            _params = params[:, params_count: params_count + m.num_params]
+            params_count += m.num_params
+
+            # Normalizing them before extracting param_dict
+            _params_min_vals = _params.min(dim=0).values
+            _params_max_vals = _params.max(dim=0).values
+            _params_normalized = normalize(_params, _params_min_vals, _params_max_vals)
+
+            raw_param_dict = m.extract_param_dict(_params_normalized)
+            # breakpoint()
+            denorm_param_dict = m.denormalize_param_dict(raw_param_dict)
+            all_params[m.__class__.__name__] = denorm_param_dict
+
+            with open(save_path, 'w') as f:
+                json.dump(all_params, f, indent=4)
+        return all_params
+    
 class ParametricEQ_40band(dasp_pytorch.modules.Processor):
     def __init__(
         self,

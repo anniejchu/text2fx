@@ -245,7 +245,7 @@ def text2fx(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
 
-    return out_sig
+    return out_sig, params
 
 
 if __name__ == "__main__":

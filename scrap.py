@@ -45,6 +45,9 @@ def apply_single_word_EQ_to_sig(sig_single: AudioSignal, batch_size: int,freq_ga
 
     return signal_effected_batch
 
+
+
+
 # testing CLAP optimization
 def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text_list: List[str], test_name: str):
     all_out={}
@@ -52,10 +55,10 @@ def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text
 
     for criterion in ("cosine-sim",):
         for text_target in text_list:
-            for param_type in ['zeros', 'random']:
+            for param_type in ['random',]:
             # Apply text2fx
                 print(f'starting {criterion}, {text_target}, {param_type}')
-                signal_effected = text2fx(
+                signal_effected, sig_effected_params = text2fx(
                     model_name=model_name, 
                     sig=in_sig_batch, 
                     text=text_target, 
@@ -66,26 +69,68 @@ def test_text2fx_batch(channel, in_sig_batch: AudioSignal, model_name: str, text
                     seed_i=3,
                     roll='all',
                     # roll_amt=10000
-                    export_audio=True,
-                    log_tensorboard=True
+                    # export_audio=False,
+                    # log_tensorboard=True
                 )
                 all_out[text_target] = signal_effected
-    return all_out
+    return all_out, sig_effected_params
 
-if __name__ == "__main__":
+
+def singletest(in_sig, text_target, channel, save_dir):
+    signal_effected, sig_effected_params = text2fx(
+            model_name='ms_clap', 
+            sig=in_sig, 
+            text=text_target, 
+            channel=channel,
+            criterion='cosine-sim', 
+            save_dir=save_dir / text_target / f'paramdict',
+            params_init_type='random',
+            seed_i=3, # get rid of this
+            roll='all', # consolidate this
+            n_iters=50,
+            # roll_amt=10000
+            # export_audio=False,
+            log_tensorboard=True
+    )
+    print(signal_effected, sig_effected_params)
+    return signal_effected, sig_effected_params
+def testingdict(batch_size = 2):
+
     channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
-
-    channel_40_band = Channel(
-        ParametricEQ_40band(sample_rate=SAMPLE_RATE)
-        )
-    input_samples_dir = Path('assets/multistem_examples/10s')
-    run_name = "batch_sig_40_band_directional_debugging"
-    
-    text_list = ['warm']
-    in_sig_batched = tc.wav_dir_to_batch(input_samples_dir)
+    # Input signal
     in_sig_single = tc.preprocess_audio(Path('/home/annie/research/text2fx/assets/multistem_examples/10s/bass.wav'))
-    out_sig_batched = test_text2fx_batch(channel_40_band, in_sig_batched, 'ms_clap', text_list=text_list,test_name=run_name)
-    print(out_sig_batched)
+    # Use GPU if available
+    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+    signal = in_sig_single.to(device)
+    # Batching it for texting
+    in_sig_batched = AudioSignal.batch([signal] * batch_size)
+    all_out, out_sig_and_params = singletest(in_sig_batched, 'warm', channel, save_dir=Path("experiments/2024-07-08"))
+    print(f'sig  -->{all_out}')
+
+    print(f' out params in list{out_sig_and_params}\n')
+
+    print('saving params to dict')
+    params_dict = channel.save_params_to_dict(out_sig_and_params)
+    print(params_dict)
+    #
+
+
+testingdict()
+
+# if __name__ == "__main__":
+#     channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+
+#     channel_40_band = Channel(
+#         ParametricEQ_40band(sample_rate=SAMPLE_RATE)
+#         )
+#     input_samples_dir = Path('assets/multistem_examples/10s')
+#     run_name = "batch_sig_40_band_directional_debugging"
+    
+#     text_list = ['warm']
+#     in_sig_batched = tc.wav_dir_to_batch(input_samples_dir)
+#     in_sig_single = tc.preprocess_audio(Path('/home/annie/research/text2fx/assets/multistem_examples/10s/bass.wav'))
+#     out_sig_batched, out_sig_params = test_text2fx_batch(channel_40_band, in_sig_batched, 'ms_clap', text_list=text_list,test_name=run_name)
+#     print(out_sig_batched)
 
 #     #--- Testing other
 #     # #constants
