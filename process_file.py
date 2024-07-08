@@ -36,8 +36,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
          roll_amt: Optional[int] = None,
          n_iters: int = 50,
          criterion: str = 'cosine-sim',
-         model: str = 'ms_clap',
-         log_experiment: bool = False) -> dict:
+         model: str = 'ms_clap') -> dict:
     
     # Preprocess audio, return AudioSignal
     in_sig = tc.preprocess_audio(audio_path)

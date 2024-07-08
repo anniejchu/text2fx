@@ -12,15 +12,26 @@ import json
 import argparse
 
 """
-Applies effects to an audio file based on parameters from a JSON dictionary.
+Applies effects to an audio file or directory of audio files based on parameters from a JSON dictionary.
 
-:param audio_path: Path to the input audio file.
+:param audio_path: Path to the input audio file or directory
 :param params_dict_path: Path to the JSON dictionary file containing de-normalized effect parameters.
 :param output_path: Path to save the processed audio file.
+
+
+python process_file_from_params.py --audio_dir_or_file assets/multistem_examples/10s/vocals.wav \
+--params_dict_path experiments/2024-07-08/process_FILES_test/output_0_bass_happy.json \
+--export_path experiments/2024-07-08/process_from_params/output_single_vocals.wav
 """
 
-def apply_effects(audio_file: Union[str, Path], params_dict_path: Union[str, Path], export_path: str):
-    in_sig = tc.preprocess_audio(audio_file).to(DEVICE)
+def apply_effects_to_sig(audio_dir_or_file: Union[str, Path], params_dict_path: Union[str, Path], export_path: str):
+    audio_dir_or_file = Path(audio_dir_or_file)
+
+    if audio_dir_or_file.is_dir():
+        in_sig = tc.wav_dir_to_batch(audio_dir_or_file).to(DEVICE)
+    else:
+        in_sig = tc.preprocess_audio(audio_dir_or_file).to(DEVICE)
+
     with open(params_dict_path, 'r') as f:
         params_dict = json.load(f)
 
@@ -36,22 +47,18 @@ def apply_effects(audio_file: Union[str, Path], params_dict_path: Union[str, Pat
     
     return out_sig
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Apply effects to an audio file based on parameters in a JSON file and export the processed file.")
+    parser = argparse.ArgumentParser(description="Apply effects to an audio file or dir of audio files based on parameters in a JSON file and export the processed file.")
     
-    parser.add_argument('--audio_file', type=str, required=True, help="Path to the input audio file.")
+    parser.add_argument('--audio_dir_or_file', type=str, required=True, help="Path to the input audio file.")
     parser.add_argument('--params_dict_path', type=str, required=True, help="Path to the JSON file containing effect parameters.")
     parser.add_argument('--export_path', type=str, required=True, help="Path to save the processed audio file.")
 
     args = parser.parse_args()
 
-    apply_effects(
-        audio_file=args.audio_file,
+    apply_effects_to_sig(
+        audio_dir_or_file=args.audio_dir_or_file,
         params_dict_path=args.params_dict_path,
         export_path=args.export_path
     )
 
-#python process_file_from_params.py --audio_file assets/multistem_examples/10s/vocals.wav \
-# --params_dict_path experiments/2024-07-08/process_FILES_test/output_0_bass_happy.json \
-# --export_path experiments/2024-07-08/process_from_params/output_single.wav
