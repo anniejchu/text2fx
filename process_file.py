@@ -1,17 +1,9 @@
-import os
-import shutil
 from pathlib import Path
-
-import torch
-import dasp_pytorch
 from typing import Union, List, Optional
 
-import audiotools as at
 from audiotools import AudioSignal
 
 import text2fx.core as tc
-from text2fx.core import ParametricEQ_40band, Channel
-from text2fx.constants import SAMPLE_RATE
 from text2fx.__main__ import text2fx
 
 """
@@ -44,7 +36,8 @@ def main(audio_path: Union[str, Path, AudioSignal],
          roll_amt: Optional[int] = None,
          n_iters: int = 50,
          criterion: str = 'cosine-sim',
-         model: str = 'ms_clap') -> dict:
+         model: str = 'ms_clap',
+         log_experiment: bool = False) -> dict:
     
     # Preprocess audio, return AudioSignal
     in_sig = tc.preprocess_audio(audio_path)
@@ -52,7 +45,6 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Create FX channel
     fx_channel = tc.create_channel(fx_chain)
-    breakpoint()
     print(f'2. created channel from {fx_chain} ... {fx_channel.modules}')
 
     # Apply text-to-FX processing
@@ -66,7 +58,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
         params_init_type=params_init_type,
         lr=learning_rate,
         n_iters=n_iters,
-        roll_amt=roll_amt
+        roll_amt=roll_amt,
     )
     print(f'4. output params {sig_effected_params} ...')
     # Extracting params to dictionary
@@ -75,7 +67,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Optionally export optimized parameters as JSON
     if export_param_dict_path:
-        print(f'saving final audio .wav to {export_param_dict_path}')
+        print(f'saving final param json to {export_param_dict_path}')
         tc.save_dict_to_json(out_params_dict, export_param_dict_path)
 
     # Optionally export optimized audio
@@ -116,7 +108,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_iters", type=int, default=50, help="Number of optimization iterations.")
     parser.add_argument("--criterion", type=str, default='cosine-sim', help="Optimization criterion.")
     parser.add_argument("--model", type=str, default='ms_clap', help="Model name.")
-    
+
     args = parser.parse_args()
 
     main(args.audio_path, args.fx_chain, args.text_target,
