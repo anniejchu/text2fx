@@ -641,38 +641,44 @@ def create_channel(fx_chain, sr=SAMPLE_RATE):
 
     return Channel(*modules)
 
-def export_sig(out_sig, save_path):
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+# def export_sig(out_sig, save_path):
+#     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+#     if out_sig.batch_size == 1:
+#         out_sig.clone().detach().cpu().write(save_path)
+#     else:
+#         for i, s in enumerate(out_sig):
+#             if save_path.endswith('.wav'):
+#                 base_path = save_path[:-4]  # Remove .wav extension
+#                 extension = '.wav'
+#             else:
+#                 base_path = save_path
+#                 extension = ''
+#             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
+def export_sig(out_sig: AudioSignal, save_path: Union[str, Path]):
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(str(save_path)), exist_ok=True)
 
     if out_sig.batch_size == 1:
-        out_sig.clone().detach().cpu().write(save_path)
+        out_sig.clone().detach().cpu().write(str(save_path))
     else:
         for i, s in enumerate(out_sig):
-            if save_path.endswith('.wav'):
-                base_path = save_path[:-4]  # Remove .wav extension
+            if str(save_path).endswith('.wav'):
+                base_path = str(save_path)[:-4]  # Remove .wav extension
                 extension = '.wav'
             else:
-                base_path = save_path
+                base_path = str(save_path)
                 extension = ''
             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
 
+def detensor_dict(input_dict: dict) -> dict:
+    output_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
+        {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
+    return output_dict
 
 def save_dict_to_json(params_dict, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # Convert tensors to lists or scalars (JSON serializable format)
-    json_serializable_dict = {}
-    for key, value in params_dict.items():
-        json_serializable_value = {}
-        for k, v in value.items():
-            if isinstance(v, torch.Tensor):
-                if v.numel() == 1:
-                    json_serializable_value[k] = v.item()  # Convert scalar tensor to Python scalar
-                else:
-                    json_serializable_value[k] = v.tolist()  # Convert tensor to Python list
-            else:
-                json_serializable_value[k] = v  # Keep non-tensor values as-is
-        json_serializable_dict[key] = json_serializable_value
+    json_serializable_dict = detensor_dict(params_dict)
 
     # Save the dictionary to JSON file
     with open(save_path, 'w') as f:
