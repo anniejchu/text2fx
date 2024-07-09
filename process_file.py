@@ -14,9 +14,9 @@ The script saves:
 - Optionally, an optimized audio file (saved to export_audio_path).
 
 Example Call:
-python process_file.py assets/multistem_examples/10s/guitar.wav reverb eq compressor warm \
-    --export_param_dict_path experiments/7-09-2024/process_file/output.json \
-    --export_audio_path experiments/7-09-2024/process_file/final_audio.wav \
+python process_file.py assets/multistem_examples/10s/piano.wav reverb eq compressor smooth \
+    --export_param_dict_path experiments/2024-07-09/script_check/process_file2/output.json \
+    --export_audio_path experiments/2024-07-09/script_check/process_file2/final_audio.wav \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -59,10 +59,10 @@ def main(audio_path: Union[str, Path, AudioSignal],
         n_iters=n_iters,
         roll_amt=roll_amt,
     )
-    print(f'4. output params {sig_effected_params} ...')
+    # print(f'4. output params {sig_effected_params} ...')
     # Extracting params to dictionary
     out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
-    print(f'5. back to dict {out_params_dict} ...')
+    # print(f'5. back to dict {out_params_dict} ...')
 
     # Optionally export optimized parameters as JSON
     if export_param_dict_path:
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimization.")
     parser.add_argument("--params_init_type", type=str, default='random', choices=['random', 'default'], help="Parameter initialization type.")
     parser.add_argument("--roll_amt", type=int, default=None, help="Amount to roll.")
-    parser.add_argument("--n_iters", type=int, default=50, help="Number of optimization iterations.")
+    parser.add_argument("--n_iters", type=int, default=20, help="Number of optimization iterations.")
     parser.add_argument("--criterion", type=str, default='cosine-sim', help="Optimization criterion.")
     parser.add_argument("--model", type=str, default='ms_clap', help="Model name.")
 

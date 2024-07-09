@@ -277,7 +277,7 @@ def apply_audealize_single_word(input_audio_file: AudioSignal, text: Union[str, 
         params = param_single.expand(signal.batch_size, -1).to(DEVICE)
 
         signal_effected= channel(signal, torch.sigmoid(params)).clone().detach().cpu()
-        save_sig_batch(signal_effected, save_dir)
+        export_sig(signal_effected, save_dir)
         
     return signal_effected
 
@@ -556,33 +556,37 @@ def create_channel(fx_chain, sr=SAMPLE_RATE):
 
     return Channel(*modules)
 
-def export_sig(out_sig: AudioSignal, save_path: Union[str, Path]):
+def export_sig(out_sig: AudioSignal, save_path_or_dir: Union[str, Path], text: Union[str, List[str]] = None):
     # Ensure the directory exists
-    os.makedirs(os.path.dirname(str(save_path)), exist_ok=True)
+    save_path_or_dir = Path(save_path_or_dir)
 
     if out_sig.batch_size == 1:
-        out_sig.clone().detach().cpu().write(str(save_path))
+        save_path_or_dir.parent.mkdir(parents=True, exist_ok=True)
+        breakpoint()
+        assert not save_path_or_dir.is_dir(), "save_path_or_dir must be a filename, not a directory, when batch_size == 1"
+        out_sig.clone().detach().cpu().write(save_path_or_dir)
     else:
+        save_path_or_dir.mkdir(parents=True, exist_ok=True)
+        assert save_path_or_dir.is_dir(), "save_path_or_dir MUST be a directory when batch_size > 1"
         for i, s in enumerate(out_sig):
-            if str(save_path).endswith('.wav'):
-                base_path = str(save_path)[:-4]  # Remove .wav extension
-                extension = '.wav'
+            if text is not None:
+                save_path = save_path_or_dir/f'{text[i]}_{out_sig.path_to_file[i].stem}.wav'
             else:
-                base_path = str(save_path)
-                extension = ''
-            out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
+                save_path = save_path_or_dir/f'{i}_{out_sig.path_to_file[i].stem}.wav'
+            s.write(save_path)
+            print(f'saved {i+1} of batch {out_sig.batch_size}')
 
 
-# saving a batch_sig to folder of /text/.wavs 
-def save_sig_batch(sig_batched, save_dir):
-    # where text = word_target
-    # text_dir = parent_dir_to_save_to/f'{text}'
-    save_dir.mkdir(parents=True, exist_ok=True)
+# # saving a batch_sig to folder of /text/.wavs 
+# def save_sig_batch(sig_batched, save_dir):
+#     # where text = word_target
+#     # text_dir = parent_dir_to_save_to/f'{text}'
+#     save_dir.mkdir(parents=True, exist_ok=True)
 
-    for i, s in enumerate(sig_batched):
-        s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
-        print(f'saved {i+1} of batch {sig_batched.batch_size}')
-        
+#     for i, s in enumerate(sig_batched):
+#         s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
+#         print(f'saved {i+1} of batch {sig_batched.batch_size}')
+
 def detensor_dict(input_dict: dict) -> dict:
     output_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
         {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
@@ -638,8 +642,8 @@ def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
     if len(audio_files) < n:# or len(descriptions) < n:
         raise ValueError("Not enough audio files to sample from")
 
-    sampled_audio_files = audio_files[:n]
-    # sampled_audio_files = random.sample(audio_files, n)
+    # sampled_audio_files = audio_files[:n]
+    sampled_audio_files = random.sample(audio_files, n)
     return sampled_audio_files 
 
 def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]:
@@ -659,6 +663,6 @@ def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]
     if len(word_list) < n:
         raise ValueError("Not enough descriptions to sample from")
 
-    sampled_words = word_list[:n]
-    # sampled_words = random.sample(word_list, n)
+    # sampled_words = word_list[:n]
+    sampled_words = random.sample(word_list, n)
     return sampled_words

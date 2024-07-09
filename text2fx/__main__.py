@@ -164,7 +164,6 @@ def text2fx(
 
     if isinstance(text, str):
         text = [text]
-    print(text)
     assert len(text) == sig.batch_size or len(text) == 1
 
     if len(text) < sig.batch_size:

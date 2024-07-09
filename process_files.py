@@ -13,14 +13,14 @@ from itertools import product
 AUDIO_SAMPLES_DIR = Path('assets/multistem_examples/10s')
 SAMPLE_WORD_LIST = ['happy', 'sad', 'cold']
 
-"""
+""" OBSOLETE
 python process_files.py \
     assets/multistem_examples/10s \
     word_descriptors.txt \
-    3 \
-    2 \
+    5 \
+    5 \
     EQ reverb \
-    --export_dir experiments/2024-07-09/checking_process_files \
+    --export_dir experiments/2024-07-09/checking_process_files_SPEED \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for optimization.')
     parser.add_argument('--params_init_type', type=str, default='random', help='Parameter initialization type.')
     parser.add_argument('--roll_amt', type=int, default=None, help='Roll amount for augmentation.')
-    parser.add_argument('--n_iters', type=int, default=50, help='Number of iterations for optimization.')
+    parser.add_argument('--n_iters', type=int, default=20, help='Number of iterations for optimization.')
     parser.add_argument('--criterion', type=str, default='cosine-sim', help='Loss criterion for optimization.')
     parser.add_argument('--model', type=str, default='ms_clap', help='Model name for text-to-FX processing.')
 
