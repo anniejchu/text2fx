@@ -692,19 +692,20 @@ def save_sig_batch(sig_batched, save_dir):
 
     for i, s in enumerate(sig_batched):
         s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
-        print(f'saved {i} of batch {sig_batched.batch_size}')
+        print(f'saved {i+1} of batch {sig_batched.batch_size}')
 
-def save_params_batch_to_jsons(input_dict, save_dir, out_sig_to_match: AudioSignal = None):
+def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal = None):
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
+    input_dict = detensor_dict(in_dict)
 
     # Initialize a defaultdict to collect data by index
     index_data = defaultdict(dict)
     for module, params in input_dict.items():
         for param, values in params.items():
             for idx, value in enumerate(values):
-                index_data[idx].setdefault(module, {})[param] = value
+                index_data[idx].setdefault(module, {})[param] = [value] #to make flat and not list of scalar value, remove brackets
 
     if out_sig_to_match is not None:
         assert len(index_data) == out_sig_to_match.batch_size, "Number of indices in input_dict must match out_sig_to_match.batch_size"

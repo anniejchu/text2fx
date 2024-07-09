@@ -20,8 +20,8 @@ Applies effects to an audio file or directory of audio files based on parameters
 
 
 python process_file_from_params.py --audio_dir_or_file assets/multistem_examples/10s/vocals.wav \
---params_dict_path experiments/2024-07-08/process_FILES_test/output_0_bass_happy.json \
---export_path experiments/2024-07-08/process_from_params/output_single_vocals.wav
+--params_dict_path experiments/2024-07-09/checking_process_files/output_4_drums_cold.json \
+--export_path experiments/2024-07-09/checking_process_file_from_params_2/output_single_vocals_list.wav
 """
 
 def apply_effects_to_sig(audio_dir_or_file: Union[str, Path], params_dict_path: Union[str, Path], export_path: str):
@@ -35,10 +35,14 @@ def apply_effects_to_sig(audio_dir_or_file: Union[str, Path], params_dict_path: 
     with open(params_dict_path, 'r') as f:
         params_dict = json.load(f)
 
+    # flattening so "low_shelf_gain_db": [scalar] ==> "low_shelf_gain_db": scalar
+    params_dict = {key: {inner_key: inner_value[0] for inner_key, inner_value in value.items()} for key, value in params_dict.items()}
+
     fx_chain = list(params_dict.keys())
     fx_channel = tc.create_channel(fx_chain)
 
     params_list = torch.tensor([value for effect_params in params_dict.values() for value in effect_params.values()])
+    breakpoint()
     params = params_list.expand(in_sig.batch_size, -1).to(DEVICE)
 
     out_sig = fx_channel(in_sig.clone(), torch.sigmoid(params))
