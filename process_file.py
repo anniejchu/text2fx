@@ -5,7 +5,7 @@ from audiotools import AudioSignal
 
 import text2fx.core as tc
 from text2fx.__main__ import text2fx
-
+from text2fx.constants import SAMPLE_RATE, DEVICE
 """
 Script to process a single audio file with a given FX chain to match a description.
 Optional arguments include learning rate, number of steps, loss type, parameter initialization, and augmentation params.
@@ -34,12 +34,12 @@ def main(audio_path: Union[str, Path, AudioSignal],
          learning_rate: float = 0.001,
          params_init_type: str = 'random',
          roll_amt: Optional[int] = None,
-         n_iters: int = 50,
+         n_iters: int = 600,
          criterion: str = 'cosine-sim',
          model: str = 'ms_clap') -> dict:
     
     # Preprocess audio, return AudioSignal
-    in_sig = tc.preprocess_audio(audio_path)
+    in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
     print(f'1. processed ... {audio_path}')
 
     # Create FX channel

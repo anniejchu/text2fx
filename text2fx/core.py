@@ -605,27 +605,39 @@ def apply_multi_word_EQ_to_batch(signal_batch: AudioSignal, word_list: List[str]
 
 # applying single word EQ params (e.g. 'warm') directly on a dir of .wavs
 def apply_single_word_EQ_to_dir(samples_dir: Path, word: str) -> AudioSignal:
-    in_sig_batch = wav_dir_to_batch(samples_dir)
+    in_sig_batch = wavs_to_batch(samples_dir)
     out_sig_batch = apply_single_word_EQ_to_batch(in_sig_batch, word)
     return out_sig_batch
 
 # applying list of words EQ params (e.g. ['warm', 'cool])directly on a dir of .wavs
 def apply_multi_word_EQ_to_dir(samples_dir: Path, word_list: List[str], export_dir: Path = None) -> Dict[str, AudioSignal]:
-    in_sig_batch = wav_dir_to_batch(samples_dir)
+    in_sig_batch = wavs_to_batch(samples_dir)
     out_sig_dict = apply_multi_word_EQ_to_batch(in_sig_batch, word_list, export_dir)
     return out_sig_dict #returns dict of d[word] = EQ'd batch_AudioSignal
+
+# saving a batch_sig to folder of /text/.wavs 
+# def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
+#     # where text = word_target
+#     for i, s in enumerate(sig_batched):
+#         instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
+#         instrument_dir.mkdir(parents=True, exist_ok=True)
+#         # print(instrument_path)
+#         s.write(instrument_dir/f"{text}.wav")
+#         print(f'saved {i} of batch {sig_batched.batch_size}')
 
 # saving a batch_sig to folder of /text/.wavs 
 def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
     # where text = word_target
     for i, s in enumerate(sig_batched):
-        instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
-        instrument_dir.mkdir(parents=True, exist_ok=True)
+        text_dir = parent_dir_to_save_to/f'{text}'
+        text_dir.mkdir(parents=True, exist_ok=True)
         # print(instrument_path)
-        s.write(instrument_dir/f"{text}.wav")
+        s.write(text_dir/f'{sig_batched.path_to_file[i].stem}.wav')
         print(f'saved {i} of batch {sig_batched.batch_size}')
 
-
+def save_json_batch(params_dict, text, parent_dir_to_save_to):
+    for i, s in enumerate(params_dict):
+        pass
 def create_channel(fx_chain, sr=SAMPLE_RATE):
     module_map = {
         'gain': dasp_pytorch.Gain,
@@ -665,14 +677,74 @@ def export_sig(out_sig, save_path):
                 extension = ''
             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
 
+# def save_dict_to_json(params_dict, save_path):
+#     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+#     # Convert tensors to lists (JSON serializable format)
+#     json_serializable_dict = {
+#         key: {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in value.items()}
+#         for key, value in params_dict.items()
+#     }
+#     # Save the dictionary to JSON file
+#     with open(save_path, 'w') as f:
+#         json.dump(json_serializable_dict, f, indent=4)
+
 def save_dict_to_json(params_dict, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-    # Convert tensors to lists (JSON serializable format)
-    json_serializable_dict = {
-        key: {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in value.items()}
-        for key, value in params_dict.items()
-    }
+    # Convert tensors to lists or scalars (JSON serializable format)
+    json_serializable_dict = {}
+    for key, value in params_dict.items():
+        json_serializable_value = {}
+        for k, v in value.items():
+            if isinstance(v, torch.Tensor):
+                if v.numel() == 1:
+                    json_serializable_value[k] = v.item()  # Convert scalar tensor to Python scalar
+                else:
+                    json_serializable_value[k] = v.tolist()  # Convert tensor to Python list
+            else:
+                json_serializable_value[k] = v  # Keep non-tensor values as-is
+        json_serializable_dict[key] = json_serializable_value
+
     # Save the dictionary to JSON file
     with open(save_path, 'w') as f:
         json.dump(json_serializable_dict, f, indent=4)
+
+def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
+    """
+    Samples n audio paths and n descriptions from the given directories.
+
+    :param audio_dir: Directory containing audio files.
+    :param descriptions_file: File containing descriptions.
+    :param n: Number of samples to process.
+    :return: List of tuples containing (audio_path, description).
+    """
+    # if isinstance(audio_dir, str):
+    #     audio_dir=Path(audio_dir)
+    audio_files = tc.load_examples(audio_dir)
+
+    if len(audio_files) < n:# or len(descriptions) < n:
+        raise ValueError("Not enough audio files to sample from")
+
+    sampled_audio_files = random.sample(audio_files, n)
+    return sampled_audio_files 
+
+def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]:
+    """
+    Samples n words from the given word descriptor source.
+
+    :param words_source: File containing word descriptors (one per line) or a list of descriptors.
+    :param n: Number of descriptor words to sample.
+    :return: List of sampled descriptor words.
+    """
+    if isinstance(words_source, (str, Path)):
+        with open(words_source, 'r') as f:
+            word_list = [line.strip() for line in f if line.strip()]
+    else:
+        word_list = words_source
+
+    if len(word_list) < n:
+        raise ValueError("Not enough descriptions to sample from")
+
+    sampled_words = random.sample(word_list, n)
+    return sampled_words

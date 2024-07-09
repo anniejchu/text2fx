@@ -241,40 +241,40 @@ def text2fx(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
 
-    return out_sig, params.detach()
+    return out_sig, params.detach().cpu()
 
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
+# if __name__ == "__main__":
+#     import argparse
+#     parser = argparse.ArgumentParser()
 
-    # parser.add_argument("--input_audio", type=int, default=5, help="index of example audio file")
-    parser.add_argument("--model_name", type=str, help="choose either 'laion_clap' or 'ms_clap'")
-    parser.add_argument("--input_audio", type=str, help="path to input audio file")
-    parser.add_argument("--text", type=str, help="text prompt for the effect")
-    parser.add_argument("--criterion", type=str, default="cosine-sim", help="criterion to use for optimization")
-    parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
-    parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
-    parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
-    parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
-    parser.add_argument("--roll_amt", type=int, default=None, help="range of # of samples for rolling action")
-    parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
-    parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
+#     # parser.add_argument("--input_audio", type=int, default=5, help="index of example audio file")
+#     parser.add_argument("--model_name", type=str, help="choose either 'laion_clap' or 'ms_clap'")
+#     parser.add_argument("--input_audio", type=str, help="path to input audio file")
+#     parser.add_argument("--text", type=str, help="text prompt for the effect")
+#     parser.add_argument("--criterion", type=str, default="cosine-sim", help="criterion to use for optimization")
+#     parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
+#     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
+#     parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
+#     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
+#     parser.add_argument("--roll_amt", type=int, default=None, help="range of # of samples for rolling action")
+#     parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
+#     parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
 
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+#     # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
 
-    text2fx(
-        model_name=args.model_name, 
-        sig=AudioSignal(args.input_audio), 
-        text=args.text, 
-        channel=args.channel,
-        criterion=args.criterion, 
-        save_dir=args.save_dir,
-        params_init_type=args.params_init_type,
-        roll_amt=args.roll_amt,
-        export_audio=args.export_audio,
-        log_tensorboard=args.log_tensorboard
-    )
+#     text2fx(
+#         model_name=args.model_name, 
+#         sig=AudioSignal(args.input_audio), 
+#         text=args.text, 
+#         channel=args.channel,
+#         criterion=args.criterion, 
+#         save_dir=args.save_dir,
+#         params_init_type=args.params_init_type,
+#         roll_amt=args.roll_amt,
+#         export_audio=args.export_audio,
+#         log_tensorboard=args.log_tensorboard
+#     )

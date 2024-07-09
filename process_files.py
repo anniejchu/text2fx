@@ -77,7 +77,7 @@ def main(audio_dir: Union[str, Path],
          learning_rate: float = 0.001,
          params_init_type: str = 'random',
          roll_amt: Optional[int] = None,
-         n_iters: int = 50,
+         n_iters: int = 600,
          criterion: str = 'cosine-sim',
          model: str = 'ms_clap'):
     
