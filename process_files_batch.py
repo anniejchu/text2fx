@@ -16,6 +16,15 @@ AUDIO_SAMPLES_DIR = Path('assets/multistem_examples/10s')
 SAMPLE_WORD_LIST = ['happy', 'sad', 'cold']
 
 """
+TODOS
+1. Flatten single value list into scalar for individual .jsons 
+2. find a better way to saving the file .json files (maybe zip(word files, descriptors?))
+3. put fx_channel.extract_dict into main function to return
+4. get rid of process_files.py? or rename
+"""
+
+
+"""
 python process_files_batch.py \
     assets/multistem_examples/10s \
     word_descriptors.txt \
