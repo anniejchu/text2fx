@@ -24,16 +24,9 @@ from functools import partial
 from collections import defaultdict
 
 
-from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH
+from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH, DEVICE
 from dasp_pytorch.modules import normalize
-"""
-EX CLI USAGE
-python text2fx.py --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"\
-                 --text "this sound is happy" \
-                 --criterion "cosine-sim" \
-                 --n_iters 600 \
-                 --lr 0.01 
-"""
+
 
 class AbstractCLAPWrapper:
     def preprocess_audio(self, signal: AudioSignal) -> AudioSignal:
@@ -137,11 +130,7 @@ class Channel(torch.nn.Module):
             # Extracting respective params for each module in Channel
             _params = params[:, params_count: params_count + m.num_params]
             params_count += m.num_params
-            # breakpoint()
-            # Normalizing them before extracting param_dict
-            # _params_min_vals = _params.min(dim=0).values
-            # _params_max_vals = _params.max(dim=0).values
-            # _params_normalized = normalize(_params, _params_min_vals, _params_max_vals)
+
             _params_normalized = torch.sigmoid(_params)
 
             raw_param_dict = m.extract_param_dict(_params_normalized)
@@ -150,9 +139,6 @@ class Channel(torch.nn.Module):
 
             # denorm_param_dict = {k: v.tolist() for k, v in denorm_param_dict.items()}
             all_params[m.__class__.__name__] = denorm_param_dict
-
-        # with open(save_path, 'w') as f:
-        #     json.dump(all_params, f, indent=4)
 
         return all_params
     
@@ -258,7 +244,7 @@ def functional_parametric_eq_40band(
     return x_out # Returns: x_out (torch.Tensor): filtered signal
 
 
-def dasp_apply_EQ_file(file_name, freqs, Q=4.31): #process function
+def apply_EQ_file(file_name, freqs, Q=4.31): #process function
     """
     file(input signal) = file_name or mono or stereo (bs, n_channels, signals)
                         ex torch.Size([1, 1, 451714])
@@ -273,6 +259,27 @@ def dasp_apply_EQ_file(file_name, freqs, Q=4.31): #process function
     out_audiosig = AudioSignal(filtered_sig, fs).ensure_max_of_audio()
 
     return out_audiosig
+
+def apply_audealize_single_word(input_audio_file: AudioSignal, text: Union[str, List[str]], save_dir: Union[str, Path]):
+    m40b = ParametricEQ_40band(sample_rate=44100)
+    channel = Channel(m40b)
+    if isinstance(text, str):
+        text = [text]    
+
+    freq_gains_dict = get_settings_for_words(EQ_GAINS_PATH, text)
+    # Use GPU if available
+
+    signal = AudioSignal(input_audio_file).to(DEVICE)
+
+    for t in text:
+        param_single = torch.tensor(freq_gains_dict[t])*5 #make dict parameter
+            # print(f'got it: {freq_gains_dict[word]}')
+        params = param_single.expand(signal.batch_size, -1).to(DEVICE)
+
+        signal_effected= channel(signal, torch.sigmoid(params)).clone().detach().cpu()
+        save_sig_batch(signal_effected, save_dir)
+        
+    return signal_effected
 
 def load_examples(dir_path: Union[str,Path]) -> List[Path]:
     dir_path = Path(dir_path)  # Convert string to Path if necessary
@@ -386,7 +393,7 @@ def plot_eq_curve(freq_bands, gains):
     - gains: List of gain values for each filter.
     """
     freq_bands = np.array(freq_bands)
-    gains = np.array(gains)*5
+    gains = np.array(gains)
     
     plt.semilogx(freq_bands, gains, label='Equalizer Curve', marker='o')
     
@@ -506,38 +513,6 @@ def calculate_auraloss_sigs(sig1, sig2, loss_funct=auraloss.freq.MultiResolution
     return loss
 
 
-def apply_export_EQ(tensor_settings, input_file, export_parent_dir):
-    """
-    Processes tensor settings to filter audio and save the results.
-
-    Parameters:
-    tensor_settings (dict): A dictionary where keys are words and values are frequency gains.
-    input_file (InputType): The filename input data to be filtered.
-    AUDEALIZE_GND_TRUTH_DIR (Path): The directory where the ground truth audio files are to be saved.
-
-    Returns:
-    None
-    """
-    for word, freq_gains in tensor_settings.items():
-        filter_out = dasp_apply_EQ_file(input_file, freq_gains)
-        print(f'applying EQ for {word} to -> {input_file.stem}')
-
-        EXPORT_EX_DIR = Path(export_parent_dir / f"{input_file.stem}")
-        EXPORT_EX_DIR.mkdir(exist_ok=True)
-
-        filter_out.write(Path(EXPORT_EX_DIR, f"EQed_{word}.wav"))
-
-
-def find_wav_files(directory: Path) -> List[Tuple[Path, Path, Path]]:
-    wav_files = []
-    for root, _, files in os.walk(directory):
-        if all(f in files for f in ['starting.wav', 'input.wav', 'final.wav']):
-            starting_wav = Path(root) / 'starting.wav'
-            input_wav = Path(root) / 'input.wav'
-            final_wav = Path(root) / 'final.wav'
-            wav_files.append((starting_wav, input_wav, final_wav))
-    return wav_files
-
 def printy(path_dir: Union[Path, List[Path]]):
     if isinstance(path_dir, list):
         for path in path_dir:
@@ -545,18 +520,6 @@ def printy(path_dir: Union[Path, List[Path]]):
     else:
         print(path_dir)
 
-#
-# # convert a directory of audio examples to a single batched_AudioSignal
-# def wav_dir_to_batch(samples_dir: Union[Path, str]) -> AudioSignal:
-#     all_raw_sigs = load_examples(samples_dir)
-#     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
-#     sig_batched = AudioSignal.batch(signal_list)
-#     return sig_batched
-
-# def wavs_to_batch(samples: Union[List[str],List[Path]]) -> AudioSignal:
-#     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in samples]
-#     sig_batched = AudioSignal.batch(signal_list)
-#     return sig_batched
 
 def wavs_to_batch(samples: Union[str, Path, List[str], List[Path]]) -> AudioSignal:
     if isinstance(samples, (str, Path)):
@@ -568,54 +531,6 @@ def wavs_to_batch(samples: Union[str, Path, List[str], List[Path]]) -> AudioSign
     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
     return AudioSignal.batch(signal_list)
 
-
-
-# applying single word EQ params (e.g. 'warm') on a batched AudioSignal
-def apply_single_word_EQ_to_batch(signal_batch: AudioSignal, word: str = 'none'):
-    m40b = ParametricEQ_40band(sample_rate=44100)
-    channel = Channel(m40b)
-    freq_gains_dict = get_settings_for_words(EQ_GAINS_PATH, [word])
-    # Use GPU if available
-    device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
-    signal = signal_batch.to(device)
-
-    if word=='none':
-        print(f'... setting random params')
-        params = torch.randn(signal.batch_size, channel.num_params).to(device)
-    else:
-        print(f'...getting parameters for {word}')
-        param_single = torch.tensor(freq_gains_dict[word])*5 #make dict parameter
-        # print(f'got it: {freq_gains_dict[word]}')
-
-        params = param_single.expand(signal.batch_size, -1).to(device)
-
-    signal_effected_batch = channel(signal, torch.sigmoid(params)).clone().detach().cpu()
-    return signal_effected_batch
-
-# applying list of words EQ params (e.g. ['warm', 'cool]) on a batched AudioSignal
-def apply_multi_word_EQ_to_batch(signal_batch: AudioSignal, word_list: List[str], export_dir: Path = None):
-    out_sig_dict = {}
-    freq_gains_dict = get_settings_for_words(EQ_GAINS_PATH, word_list)
-    for word_i in word_list:
-        out_sig_i = apply_single_word_EQ_to_batch(signal_batch, word_i)
-        print(f'applied {word_i} EQ settings to batch...')
-        out_sig_dict[word_i] = out_sig_i
-        if export_dir is not None:
-            save_sig_batch(preprocess_audio(out_sig_i), word_i, export_dir)# test_ex_dir/f'multirun_1')
-
-    return out_sig_dict
-
-# applying single word EQ params (e.g. 'warm') directly on a dir of .wavs
-def apply_single_word_EQ_to_dir(samples_dir: Path, word: str) -> AudioSignal:
-    in_sig_batch = wavs_to_batch(samples_dir)
-    out_sig_batch = apply_single_word_EQ_to_batch(in_sig_batch, word)
-    return out_sig_batch
-
-# applying list of words EQ params (e.g. ['warm', 'cool])directly on a dir of .wavs
-def apply_multi_word_EQ_to_dir(samples_dir: Path, word_list: List[str], export_dir: Path = None) -> Dict[str, AudioSignal]:
-    in_sig_batch = wavs_to_batch(samples_dir)
-    out_sig_dict = apply_multi_word_EQ_to_batch(in_sig_batch, word_list, export_dir)
-    return out_sig_dict #returns dict of d[word] = EQ'd batch_AudioSignal
 
 def create_channel(fx_chain, sr=SAMPLE_RATE):
     module_map = {
@@ -641,20 +556,6 @@ def create_channel(fx_chain, sr=SAMPLE_RATE):
 
     return Channel(*modules)
 
-# def export_sig(out_sig, save_path):
-#     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-#     if out_sig.batch_size == 1:
-#         out_sig.clone().detach().cpu().write(save_path)
-#     else:
-#         for i, s in enumerate(out_sig):
-#             if save_path.endswith('.wav'):
-#                 base_path = save_path[:-4]  # Remove .wav extension
-#                 extension = '.wav'
-#             else:
-#                 base_path = save_path
-#                 extension = ''
-#             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
 def export_sig(out_sig: AudioSignal, save_path: Union[str, Path]):
     # Ensure the directory exists
     os.makedirs(os.path.dirname(str(save_path)), exist_ok=True)
@@ -671,6 +572,17 @@ def export_sig(out_sig: AudioSignal, save_path: Union[str, Path]):
                 extension = ''
             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
 
+
+# saving a batch_sig to folder of /text/.wavs 
+def save_sig_batch(sig_batched, save_dir):
+    # where text = word_target
+    # text_dir = parent_dir_to_save_to/f'{text}'
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, s in enumerate(sig_batched):
+        s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
+        print(f'saved {i+1} of batch {sig_batched.batch_size}')
+        
 def detensor_dict(input_dict: dict) -> dict:
     output_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
         {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
@@ -684,15 +596,6 @@ def save_dict_to_json(params_dict, save_path):
     with open(save_path, 'w') as f:
         json.dump(json_serializable_dict, f, indent=4)
 
-# saving a batch_sig to folder of /text/.wavs 
-def save_sig_batch(sig_batched, save_dir):
-    # where text = word_target
-    # text_dir = parent_dir_to_save_to/f'{text}'
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    for i, s in enumerate(sig_batched):
-        s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
-        print(f'saved {i+1} of batch {sig_batched.batch_size}')
 
 def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal = None):
     save_dir = Path(save_dir)
@@ -735,7 +638,8 @@ def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
     if len(audio_files) < n:# or len(descriptions) < n:
         raise ValueError("Not enough audio files to sample from")
 
-    sampled_audio_files = random.sample(audio_files, n)
+    sampled_audio_files = audio_files[:n]
+    # sampled_audio_files = random.sample(audio_files, n)
     return sampled_audio_files 
 
 def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]:
@@ -755,5 +659,6 @@ def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]
     if len(word_list) < n:
         raise ValueError("Not enough descriptions to sample from")
 
-    sampled_words = random.sample(word_list, n)
+    sampled_words = word_list[:n]
+    # sampled_words = random.sample(word_list, n)
     return sampled_words

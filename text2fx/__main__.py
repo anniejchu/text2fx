@@ -7,6 +7,8 @@ import audiotools as at
 import dasp_pytorch
 from audiotools import AudioSignal
 
+from typing import Union, List
+
 from torch.utils.tensorboard import SummaryWriter
 
 # from msclap import CLAP
@@ -68,7 +70,7 @@ def get_default_channel():
 def text2fx(
     model_name: str,
     sig: AudioSignal, 
-    text: str,   
+    text: Union[str, List[str]],   
     channel: Channel,
     device: str = "cuda" if torch.cuda.is_available() else "cpu", 
     log_audio_every_n: int = 25, 
@@ -114,8 +116,8 @@ def text2fx(
     elif params_init_type=='random':
         params_single = torch.randn(1, channel.num_params).to(device) 
         params = torch.nn.parameter.Parameter(
-            params_single.repeat(sig.batch_size, 1).to(device)
-            # torch.randn(sig.batch_size, channel.num_params).to(device) 
+            #params_single.repeat(sig.batch_size, 1).to(device)
+            torch.randn(sig.batch_size, channel.num_params).to(device) 
         )
     else:
         raise ValueError
@@ -160,11 +162,27 @@ def text2fx(
                 sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_input.wav')
                 init_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
-    embedding_target = clap.get_text_embeddings([f'this sound is {text}']*sig.batch_size).detach()
+    if isinstance(text, str):
+        text = [text]
+    print(text)
+    assert len(text) == sig.batch_size or len(text) == 1
+
+    if len(text) < sig.batch_size:
+        text = text * sig.batch_size
+
+    # Preprocess text
+    text_processed = [
+        f"this sound is {t}" for t in text
+    ]
+    embedding_target = clap.get_text_embeddings(text_processed).detach()
 
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
-        text_anchor_emb = clap.get_text_embeddings([f"this sound is not {text}"]*sig.batch_size).detach()
+
+        text_neg_processed = [
+            f"this sound is not {t}" for t in text
+        ]
+        text_anchor_emb = clap.get_text_embeddings(text_neg_processed).detach()
 
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
