@@ -10,7 +10,8 @@ from text2fx.__main__ import text2fx
 from process_file import main as process_file_main
 from itertools import product
 from text2fx.constants import SAMPLE_RATE, DEVICE
-
+import json
+import torch
 AUDIO_SAMPLES_DIR = Path('assets/multistem_examples/10s')
 SAMPLE_WORD_LIST = ['happy', 'sad', 'cold']
 
@@ -50,6 +51,7 @@ def main(audio_dir: Union[str, Path],
     fx_channel = tc.create_channel(fx_chain)
     ALL_out_sigs = {}
     ALL_out_params = {}
+    check = {}
     for i, description in enumerate(sampled_descriptions):
         out_sig, out_params = text2fx(
             model_name=model,
@@ -59,19 +61,31 @@ def main(audio_dir: Union[str, Path],
             lr=learning_rate,
             params_init_type=params_init_type,
             roll_amt=roll_amt,
-            n_iters=n_iters,
+            n_iters=20,
             criterion=criterion,
         )
         ALL_out_sigs[description]  = out_sig
         out_params_dict = fx_channel.save_params_to_dict(out_params)
         ALL_out_params[description]  = out_params_dict
-        
+
+        check_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
+               {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in out_params_dict.items()}
+        check[description] = (list(map(str, out_sig.path_to_input_file)), check_dict)
         if export_dir is not None:
-            tc.save_sig_batch(out_sig, description, Path(export_dir))
+            # splitting by word
+            save_dir = Path(export_dir) / f'{description}'
+            tc.save_sig_batch(out_sig, save_dir)
+            tc.save_params_batch_to_jsons(out_params_dict, save_dir, out_sig_to_match=out_sig)
+
             export_param_dict_path = Path(export_dir) / f'output_{description}.json'
             tc.save_dict_to_json(out_params_dict, export_param_dict_path)
 
-    return ALL_out_sigs, ALL_out_params
+            export_check_txt_path = Path(export_dir) / f'check_{description}.txt'
+            with open(export_check_txt_path, 'w') as f:
+                json.dump(check[description], f, indent=4)  # Serialize to JSON format
+
+    print(check)
+    return ALL_out_sigs, ALL_out_params, check
 
 if __name__ == "__main__":
     main(
@@ -80,7 +94,7 @@ if __name__ == "__main__":
         n_samples = 3,
         n_words = 2,
         fx_chain = ['compressor', 'reverb'],
-        export_dir = 'experiments/7-09-2024',
+        export_dir = 'experiments/7-09-2024/multipath2',
         n_iters= 50,
         criterion = 'cosine-sim',
         model= 'ms_clap')

@@ -21,6 +21,8 @@ from audiotools import AudioSignal
 import dasp_pytorch
 import auraloss
 from functools import partial
+from collections import defaultdict
+
 
 from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH
 from dasp_pytorch.modules import normalize
@@ -615,29 +617,6 @@ def apply_multi_word_EQ_to_dir(samples_dir: Path, word_list: List[str], export_d
     out_sig_dict = apply_multi_word_EQ_to_batch(in_sig_batch, word_list, export_dir)
     return out_sig_dict #returns dict of d[word] = EQ'd batch_AudioSignal
 
-# saving a batch_sig to folder of /text/.wavs 
-# def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
-#     # where text = word_target
-#     for i, s in enumerate(sig_batched):
-#         instrument_dir = parent_dir_to_save_to/f'{sig_batched.path_to_file[i].stem}'
-#         instrument_dir.mkdir(parents=True, exist_ok=True)
-#         # print(instrument_path)
-#         s.write(instrument_dir/f"{text}.wav")
-#         print(f'saved {i} of batch {sig_batched.batch_size}')
-
-# saving a batch_sig to folder of /text/.wavs 
-def save_sig_batch(sig_batched, text, parent_dir_to_save_to):
-    # where text = word_target
-    for i, s in enumerate(sig_batched):
-        text_dir = parent_dir_to_save_to/f'{text}'
-        text_dir.mkdir(parents=True, exist_ok=True)
-        # print(instrument_path)
-        s.write(text_dir/f'{sig_batched.path_to_file[i].stem}.wav')
-        print(f'saved {i} of batch {sig_batched.batch_size}')
-
-def save_json_batch(params_dict, text, parent_dir_to_save_to):
-    for i, s in enumerate(params_dict):
-        pass
 def create_channel(fx_chain, sr=SAMPLE_RATE):
     module_map = {
         'gain': dasp_pytorch.Gain,
@@ -677,17 +656,6 @@ def export_sig(out_sig, save_path):
                 extension = ''
             out_sig[i].clone().detach().cpu().write(f'{base_path}_{i}{extension}')
 
-# def save_dict_to_json(params_dict, save_path):
-#     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-#     # Convert tensors to lists (JSON serializable format)
-#     json_serializable_dict = {
-#         key: {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in value.items()}
-#         for key, value in params_dict.items()
-#     }
-#     # Save the dictionary to JSON file
-#     with open(save_path, 'w') as f:
-#         json.dump(json_serializable_dict, f, indent=4)
 
 def save_dict_to_json(params_dict, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -710,6 +678,40 @@ def save_dict_to_json(params_dict, save_path):
     with open(save_path, 'w') as f:
         json.dump(json_serializable_dict, f, indent=4)
 
+# saving a batch_sig to folder of /text/.wavs 
+def save_sig_batch(sig_batched, save_dir):
+    # where text = word_target
+    # text_dir = parent_dir_to_save_to/f'{text}'
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, s in enumerate(sig_batched):
+        s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
+        print(f'saved {i} of batch {sig_batched.batch_size}')
+
+def save_params_batch_to_jsons(input_dict, save_dir, out_sig_to_match: AudioSignal = None):
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+
+    # Initialize a defaultdict to collect data by index
+    index_data = defaultdict(dict)
+    for module, params in input_dict.items():
+        for param, values in params.items():
+            for idx, value in enumerate(values):
+                index_data[idx].setdefault(module, {})[param] = value
+
+    if out_sig_to_match is not None:
+        assert len(index_data) == out_sig_to_match.batch_size, "Number of indices in input_dict must match out_sig_to_match.batch_size"
+
+    # Save each index data as a separate JSON file using save_dict_to_json
+    for idx, data in index_data.items():
+        print(idx)
+        if out_sig_to_match is not None:
+            file_path = os.path.join(save_dir, f"{idx}_{out_sig_to_match.path_to_file[idx].stem}.json")
+        else:
+            file_path = os.path.join(save_dir, f"{idx}_index.json")
+        save_dict_to_json(data, file_path)
+
 def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
     """
     Samples n audio paths and n descriptions from the given directories.
@@ -721,7 +723,7 @@ def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
     """
     # if isinstance(audio_dir, str):
     #     audio_dir=Path(audio_dir)
-    audio_files = tc.load_examples(audio_dir)
+    audio_files = load_examples(audio_dir)
 
     if len(audio_files) < n:# or len(descriptions) < n:
         raise ValueError("Not enough audio files to sample from")
