@@ -14,9 +14,9 @@ The script saves:
 - Optionally, an optimized audio file (saved to export_audio_path).
 
 Example Call:
-python process_file.py assets/multistem_examples/10s/guitar.wav reverb eq compressor warm
-    --export_param_dict_path /home/annie/research/text2fx/experiments/2024-07-08/process_file_test_1/output.json \
-    --export_audio_path /home/annie/research/text2fx/experiments/2024-07-08/process_file_test_1/final_audio.wav \
+python process_file.py assets/multistem_examples/10s/guitar.wav reverb eq compressor warm \
+    --export_param_dict_path experiments/7-09-2024/process_file/output.json \
+    --export_audio_path experiments/7-09-2024/process_file/final_audio.wav \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
