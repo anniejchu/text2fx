@@ -576,17 +576,6 @@ def export_sig(out_sig: AudioSignal, save_path_or_dir: Union[str, Path], text: U
             s.write(save_path)
             print(f'saved {i+1} of batch {out_sig.batch_size}')
 
-
-# # saving a batch_sig to folder of /text/.wavs 
-# def save_sig_batch(sig_batched, save_dir):
-#     # where text = word_target
-#     # text_dir = parent_dir_to_save_to/f'{text}'
-#     save_dir.mkdir(parents=True, exist_ok=True)
-
-#     for i, s in enumerate(sig_batched):
-#         s.write(save_dir/f'{i}_{sig_batched.path_to_file[i].stem}.wav')
-#         print(f'saved {i+1} of batch {sig_batched.batch_size}')
-
 def detensor_dict(input_dict: dict) -> dict:
     output_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
         {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
@@ -601,7 +590,7 @@ def save_dict_to_json(params_dict, save_path):
         json.dump(json_serializable_dict, f, indent=4)
 
 
-def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal = None):
+def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal = None, text_to_match: List[str] = None):
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -621,7 +610,11 @@ def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal 
     for idx, data in index_data.items():
         print(idx)
         if out_sig_to_match is not None:
-            file_path = os.path.join(save_dir, f"{idx}_{out_sig_to_match.path_to_file[idx].stem}.json")
+            if text_to_match is not None:
+                assert out_sig_to_match.batch_size == len(text_to_match)
+                file_path = os.path.join(save_dir, f"{text_to_match[idx]}_{out_sig_to_match.path_to_file[idx].stem}.json")
+            else:
+                file_path = os.path.join(save_dir, f"{idx}_{out_sig_to_match.path_to_file[idx].stem}.json")
         else:
             file_path = os.path.join(save_dir, f"{idx}_index.json")
         save_dict_to_json(data, file_path)

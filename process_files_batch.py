@@ -21,7 +21,7 @@ python process_files_batch.py \
     word_descriptors.txt \
     3 \
     EQ reverb \
-    --export_dir experiments/2024-07-09/script_check/process_files_batch \
+    --export_dir experiments/2024-07-09/script_check/process_files_batch1 \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -69,7 +69,7 @@ def main(audio_dir: Union[str, Path],
         export_param_dict_path = Path(export_dir) / f'output_all.json'
         print(f'saving final param json to {export_param_dict_path}')
         tc.save_dict_to_json(out_params_dict, export_param_dict_path)
-
+        tc.save_params_batch_to_jsons(out_params_dict, export_dir, out_sig_to_match=signal_effected, text_to_match=sampled_descriptions)
     return sig_effected_params
 
 
