@@ -272,7 +272,8 @@ def dasp_apply_EQ_file(file_name, freqs, Q=4.31): #process function
 
     return out_audiosig
 
-def load_examples(dir_path: Path) -> List[Path]:
+def load_examples(dir_path: Union[str,Path]) -> List[Path]:
+    dir_path = Path(dir_path)  # Convert string to Path if necessary
     exts = ["mp3", "wav", "flac"]
     example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
     example_files = sum(example_files, [])  # Trick to flatten list of lists
@@ -543,12 +544,29 @@ def printy(path_dir: Union[Path, List[Path]]):
         print(path_dir)
 
 #
-# convert a directory of audio examples to a single batched_AudioSignal
-def wav_dir_to_batch(samples_dir) -> AudioSignal:
-    all_raw_sigs = load_examples(samples_dir)
+# # convert a directory of audio examples to a single batched_AudioSignal
+# def wav_dir_to_batch(samples_dir: Union[Path, str]) -> AudioSignal:
+#     all_raw_sigs = load_examples(samples_dir)
+#     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
+#     sig_batched = AudioSignal.batch(signal_list)
+#     return sig_batched
+
+# def wavs_to_batch(samples: Union[List[str],List[Path]]) -> AudioSignal:
+#     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in samples]
+#     sig_batched = AudioSignal.batch(signal_list)
+#     return sig_batched
+
+def wavs_to_batch(samples: Union[str, Path, List[str], List[Path]]) -> AudioSignal:
+    if isinstance(samples, (str, Path)):
+        all_raw_sigs = load_examples(samples)
+    else:
+        samples = [Path(s) if isinstance(s, str) else s for s in samples]
+        all_raw_sigs = samples
+    
     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
-    sig_batched = AudioSignal.batch(signal_list)
-    return sig_batched
+    return AudioSignal.batch(signal_list)
+
+
 
 # applying single word EQ params (e.g. 'warm') on a batched AudioSignal
 def apply_single_word_EQ_to_batch(signal_batch: AudioSignal, word: str = 'none'):
