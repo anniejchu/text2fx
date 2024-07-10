@@ -14,9 +14,9 @@ The script saves:
 - Optionally, an optimized audio file (saved to export_audio_path).
 
 Example Call:
-python process_file.py assets/multistem_examples/10s/piano.wav reverb eq compressor smooth \
-    --export_param_dict_path experiments/2024-07-10/flatten_list/test1/output.json \
-    --export_audio_path experiments/2024-07-10/flatten_list/test1/final_audio.wav \
+python process_file.py assets/multistem_examples/10s/piano.wav eq compressor warm \
+    --export_param_dict_path experiments/2024-07-10/SINGLE_TEST/out.json \
+    --export_audio_path experiments/2024-07-10/SINGLE_TEST/out.wav \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimization.")
     parser.add_argument("--params_init_type", type=str, default='random', choices=['random', 'default'], help="Parameter initialization type.")
     parser.add_argument("--roll_amt", type=int, default=None, help="Amount to roll.")
-    parser.add_argument("--n_iters", type=int, default=20, help="Number of optimization iterations.")
+    parser.add_argument("--n_iters", type=int, default=600, help="Number of optimization iterations.")
     parser.add_argument("--criterion", type=str, default='cosine-sim', help="Optimization criterion.")
     parser.add_argument("--model", type=str, default='ms_clap', help="Model name.")
 
