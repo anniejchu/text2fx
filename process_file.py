@@ -15,8 +15,8 @@ The script saves:
 
 Example Call:
 python process_file.py assets/multistem_examples/10s/piano.wav reverb eq compressor smooth \
-    --export_param_dict_path experiments/2024-07-09/script_check/process_file2/output.json \
-    --export_audio_path experiments/2024-07-09/script_check/process_file2/final_audio.wav \
+    --export_param_dict_path experiments/2024-07-10/flatten_list/test1/output.json \
+    --export_audio_path experiments/2024-07-10/flatten_list/test1/final_audio.wav \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -48,7 +48,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Apply text-to-FX processing
     print(f'3. applying text2fx ...')
-    signal_effected, sig_effected_params = text2fx(
+    signal_effected, out_params_dict = text2fx(
         model_name=model, 
         sig=in_sig, 
         text=text_target, 
@@ -61,7 +61,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
     )
     # print(f'4. output params {sig_effected_params} ...')
     # Extracting params to dictionary
-    out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
+    # out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
     # print(f'5. back to dict {out_params_dict} ...')
 
     # Optionally export optimized parameters as JSON

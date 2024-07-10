@@ -59,7 +59,7 @@ def main(audio_dir: Union[str, Path],
     print(sampled_audio_files, sampled_descriptions)
     fx_channel = tc.create_channel(fx_chain)
 
-    signal_effected, sig_effected_params = text2fx(
+    signal_effected, out_params_dict = text2fx(
         model_name=model, 
         sig=in_sig_batch, 
         text=sampled_descriptions, 
@@ -70,7 +70,7 @@ def main(audio_dir: Union[str, Path],
         n_iters=n_iters,
         roll_amt=roll_amt,
     )
-    out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
+    # out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
 
     data_labels = list(zip(sampled_audio_files, sampled_descriptions))
     print(data_labels)
@@ -81,10 +81,9 @@ def main(audio_dir: Union[str, Path],
         export_param_dict_path = Path(export_dir) / f'output_all.json'
         print(f'saving final param json to {export_param_dict_path}')
         tc.save_dict_to_json(out_params_dict, export_param_dict_path)
-        # tc.save_params_batch_to_jsons(out_params_dict, export_dir, out_sig_to_match=signal_effected, text_to_match=sampled_descriptions)
         tc.save_params_batch_to_jsons(out_params_dict, export_dir, data_labels=data_labels)
 
-    return sig_effected_params
+    return out_params_dict
 
 
 # if __name__ == "__main__":
