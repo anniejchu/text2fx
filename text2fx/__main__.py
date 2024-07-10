@@ -93,7 +93,7 @@ def text2fx(
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
-        if save_dir is None:
+        if save_dir:
             save_dir = create_save_dir(text, RUNS_DIR)
         else:
             save_dir = Path(save_dir)
@@ -190,7 +190,7 @@ def text2fx(
         # Apply effect with out estimated parameters
         sig_roll = sig.clone()
 
-        if roll_amt is not None:
+        if roll_amt:
             roll_amount = torch.randint(-roll_amt, roll_amt + 1, (sig_roll.batch_size,))
         else:
             roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
