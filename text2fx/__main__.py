@@ -142,7 +142,7 @@ def text2fx(
     optimizer = torch.optim.Adam([params], lr=lr)
 
     #preprocessing initial sample
-    sig = preprocess_audio(sig)
+    sig = preprocess_audio(sig).to(device)
     # log what our initial effect sounds like (w/ random parameters applied)
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
     if writer:
