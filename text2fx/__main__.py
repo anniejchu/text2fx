@@ -153,12 +153,12 @@ def text2fx(
         if sig.batch_size == 1:
             init_sig_path = Path(init_sig.path_to_file)
             sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_input.wav')
-            init_sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_starting.wav')
+            init_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_starting.wav')
 
         else:
             for i, s in enumerate(init_sig):
                 sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_input.wav')
-                init_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
+                init_sig[i].detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
     if isinstance(text, str):
         text = [text]
