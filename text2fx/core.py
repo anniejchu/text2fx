@@ -562,7 +562,6 @@ def export_sig(out_sig: AudioSignal, save_path_or_dir: Union[str, Path], text: U
 
     if out_sig.batch_size == 1:
         save_path_or_dir.parent.mkdir(parents=True, exist_ok=True)
-        breakpoint()
         assert not save_path_or_dir.is_dir(), "save_path_or_dir must be a filename, not a directory, when batch_size == 1"
         out_sig.clone().detach().cpu().write(save_path_or_dir)
     else:
@@ -581,10 +580,16 @@ def detensor_dict(input_dict: dict) -> dict:
         {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
     return output_dict
 
+def flatten_single_item_lists(d):
+    for key, subdict in d.items():
+        for subkey, value in subdict.items():
+            if isinstance(value, list) and len(value) == 1:
+                subdict[subkey] = value[0]
+    return d
+
 def save_dict_to_json(params_dict, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    json_serializable_dict = detensor_dict(params_dict)
-
+    json_serializable_dict = flatten_single_item_lists(detensor_dict(params_dict))
     # Save the dictionary to JSON file
     with open(save_path, 'w') as f:
         json.dump(json_serializable_dict, f, indent=4)
@@ -601,7 +606,7 @@ def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal 
     for module, params in input_dict.items():
         for param, values in params.items():
             for idx, value in enumerate(values):
-                index_data[idx].setdefault(module, {})[param] = [value] #to make flat and not list of scalar value, remove brackets
+                index_data[idx].setdefault(module, {})[param] = value #to make flat and not list of scalar value, remove brackets
 
     if out_sig_to_match is not None:
         assert len(index_data) == out_sig_to_match.batch_size, "Number of indices in input_dict must match out_sig_to_match.batch_size"
@@ -612,9 +617,32 @@ def save_params_batch_to_jsons(in_dict, save_dir, out_sig_to_match: AudioSignal 
         if out_sig_to_match is not None:
             if text_to_match is not None:
                 assert out_sig_to_match.batch_size == len(text_to_match)
-                file_path = os.path.join(save_dir, f"{text_to_match[idx]}_{out_sig_to_match.path_to_file[idx].stem}.json")
+                file_path = os.path.join(save_dir, f"{idx}_{text_to_match[idx]}_{out_sig_to_match.path_to_file[idx].stem}.json")
             else:
                 file_path = os.path.join(save_dir, f"{idx}_{out_sig_to_match.path_to_file[idx].stem}.json")
+        else:
+            file_path = os.path.join(save_dir, f"{idx}_index.json")
+        save_dict_to_json(data, file_path)
+
+def save_params_batch_to_jsons(in_dict, save_dir, data_labels: List[Tuple[Path, str]]=None): #out_sig_to_match: AudioSignal = None, text_to_match: List[str] = None):
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    input_dict = detensor_dict(in_dict)
+
+    # Initialize a defaultdict to collect data by index
+    index_data = defaultdict(dict)
+    for module, params in input_dict.items():
+        for param, values in params.items():
+            for idx, value in enumerate(values):
+                index_data[idx].setdefault(module, {})[param] = value #to make flat and not list of scalar value, remove brackets
+
+    # Save each index data as a separate JSON file using save_dict_to_json
+    for idx, data in index_data.items():
+        print(idx)
+        if data_labels:
+            assert len(index_data) == len(data_labels), "Number of indices in input_dict must match out_sig_to_match.batch_size"
+            file_path = os.path.join(save_dir, f"{idx}_{data_labels[idx][1]}_{data_labels[idx][0].stem}.json")
         else:
             file_path = os.path.join(save_dir, f"{idx}_index.json")
         save_dict_to_json(data, file_path)

@@ -12,6 +12,7 @@ from itertools import product
 from text2fx.constants import SAMPLE_RATE, DEVICE
 import json
 import torch
+
 AUDIO_SAMPLES_DIR = Path('assets/multistem_examples/10s')
 SAMPLE_WORD_LIST = ['happy', 'sad', 'cold']
 
@@ -30,7 +31,7 @@ python process_files_batch.py \
     word_descriptors.txt \
     3 \
     EQ reverb \
-    --export_dir experiments/2024-07-09/script_check/process_files_batch1 \
+    --export_dir experiments/2024-07-10/flatten_list/process_files_batch \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -71,6 +72,8 @@ def main(audio_dir: Union[str, Path],
     )
     out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
 
+    data_labels = list(zip(sampled_audio_files, sampled_descriptions))
+    print(data_labels)
     if export_dir is not None:
         print(f'saving final audio .wav to {export_dir}')
         tc.export_sig(signal_effected, export_dir, text=sampled_descriptions)
@@ -78,7 +81,9 @@ def main(audio_dir: Union[str, Path],
         export_param_dict_path = Path(export_dir) / f'output_all.json'
         print(f'saving final param json to {export_param_dict_path}')
         tc.save_dict_to_json(out_params_dict, export_param_dict_path)
-        tc.save_params_batch_to_jsons(out_params_dict, export_dir, out_sig_to_match=signal_effected, text_to_match=sampled_descriptions)
+        # tc.save_params_batch_to_jsons(out_params_dict, export_dir, out_sig_to_match=signal_effected, text_to_match=sampled_descriptions)
+        tc.save_params_batch_to_jsons(out_params_dict, export_dir, data_labels=data_labels)
+
     return sig_effected_params
 
 

@@ -36,7 +36,7 @@ def apply_effects_to_sig(audio_dir_or_file: Union[str, Path], params_dict_path: 
         params_dict = json.load(f)
 
     # flattening so "low_shelf_gain_db": [scalar] ==> "low_shelf_gain_db": scalar
-    params_dict = {key: {inner_key: inner_value[0] for inner_key, inner_value in value.items()} for key, value in params_dict.items()}
+    # params_dict = {key: {inner_key: inner_value[0] for inner_key, inner_value in value.items()} for key, value in params_dict.items()}
 
     fx_chain = list(params_dict.keys())
     fx_channel = tc.create_channel(fx_chain)
