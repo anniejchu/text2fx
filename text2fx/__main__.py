@@ -93,12 +93,11 @@ def text2fx(
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
-        if save_dir:
+        if not save_dir:
             save_dir = create_save_dir(text, RUNS_DIR)
         else:
             save_dir = Path(save_dir)
             save_dir.mkdir(exist_ok=True, parents=True)
-    # print(save_dir)
 
     # create a writer for saving stuff to tensorboard
     if log_tensorboard:
@@ -122,7 +121,6 @@ def text2fx(
     else:
         raise ValueError
     
-    # breakpoint()
     # Log the model, torch amount, starting parameters, and their values
     if log_tensorboard or export_audio:
         log_file = save_dir / f"experiment_log.txt"
@@ -150,12 +148,12 @@ def text2fx(
     if writer:
         writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
-
     # sig.clone().cpu().write(save_dir / 'input.wav')
     if export_audio: #starting audio
         if sig.batch_size == 1:
-            sig.clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file.stem}_input.wav')
-            init_sig.clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file.stem}_starting.wav')
+            init_sig_path = Path(init_sig.path_to_file)
+            sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_input.wav')
+            init_sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_starting.wav')
 
         else:
             for i, s in enumerate(init_sig):
@@ -200,7 +198,6 @@ def text2fx(
                 log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
 
         for i in range(sig_roll.batch_size):
-            # breakpoint()
             rolled = torch.roll(sig_roll.samples[i], shifts=roll_amount[i].item(), dims=-1)
             # print(rolled)
             sig_roll.samples[i:i+1] = rolled
@@ -209,7 +206,6 @@ def text2fx(
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
-        # breakpoint()
 
         # loss
         if criterion == "directional_loss":
@@ -249,17 +245,18 @@ def text2fx(
 
     if export_audio:
         if sig.batch_size == 1:
-            out_sig.clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file.stem}_final.wav')
+            out_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_final.wav')
+            # out_sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_final.wav')
         else:
             for i, s in enumerate(out_sig):
-                out_sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_final.wav')
+                i_init_sig_path = Path(init_sig.path_to_file[i])
+                out_sig[i].detach().cpu().write(save_dir / f'{i_init_sig_path.stem}_final.wav')
 
     # out_sig.write(save_dir / "final.wav")
-
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
-
+    
     return out_sig, out_params_dict#params.detach().cpu()
 
 
