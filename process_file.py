@@ -14,9 +14,9 @@ The script saves:
 - Optionally, an optimized audio file (saved to export_audio_path).
 
 Example Call:
-python process_file.py assets/multistem_examples/10s/piano.wav eq compressor warm \
-    --export_param_dict_path experiments/2024-07-10/SINGLE_TEST/out.json \
-    --export_audio_path experiments/2024-07-10/SINGLE_TEST/out.wav \
+python process_file.py assets/multistem_examples/10s/piano.wav eq warm \
+    --export_param_dict_path experiments/2024-08-19/SINGLE_TEST/out.json \
+    --export_audio_path experiments/2024-08-19/SINGLE_TEST/out.wav \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -48,7 +48,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Apply text-to-FX processing
     print(f'3. applying text2fx ...')
-    signal_effected, out_params_dict = text2fx(
+    signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig=in_sig, 
         text=text_target, 

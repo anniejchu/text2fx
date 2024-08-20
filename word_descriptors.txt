@@ -1,0 +1,11 @@
+happy
+warm
+cold
+loud
+roomy
+cathedral
+tinny
+dark
+bright
+smooth
+clear

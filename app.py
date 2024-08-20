@@ -15,7 +15,7 @@ def process_fn(data):
     print(data[fx_chain])
     channel = tc.create_channel(data[fx_chain])
     # breakpoint()
-    output_sig, out_params_dict = text2fx(
+    output_sig, out_params, out_params_dict = text2fx(
         model_name = 'ms_clap',
         sig = at.AudioSignal(data[input_audio]), 
         text=data[text],
@@ -28,12 +28,12 @@ def process_fn(data):
     )
     assert output_sig.path_to_file is not None
 
-    in_path_to_file = os.path.join(os.path.dirname(output_sig.path_to_file), os.path.basename(output_sig.path_to_file).replace('_final', '_starting'))
+    in_path_to_file = os.path.join(os.path.dirname(output_sig.path_to_file), os.path.basename(output_sig.path_to_file).replace('_final', '_input'))
 
     return in_path_to_file, output_sig.path_to_file, tc.detensor_dict(out_params_dict)
 
 with gr.Blocks() as demo:
-    gr.Markdown("### 💥 💥 💥 !!!!text 2 fx!!!!! 💥 💥 💥")
+    gr.Markdown("### 💥 💥 💥 !!!!text2fx (baseline demo) !!!!! 💥 💥 💥")
     input_audio = gr.Audio(label="a sound", type="filepath")
     text = gr.Textbox(lines=5, label="i want this sound to be ...")
     criterion = gr.Radio(["standard", "directional_loss", "cosine-sim"], label="criterion", value="cosine-sim")
@@ -41,7 +41,7 @@ with gr.Blocks() as demo:
     num_iters = gr.Slider(0, 1000, value=600, step=25,label="number of iterations")
     fx_chain = gr.Dropdown(["reverb", "eq", "compressor", "gain", "eq40"],  multiselect=True, label='Effects to include in FX chain', value=["eq"])
 
-    process_button = gr.Button("hit it lets go!")
+    process_button = gr.Button("hit it, lets go!")
     in_compare_audio = gr.Audio(label="input sound", type="filepath")
     output_audio = gr.Audio(label="output sound", type="filepath")
     output_params = gr.JSON(label='output params')
@@ -53,4 +53,5 @@ with gr.Blocks() as demo:
     )
 
     
-demo.launch(server_port=7862)
+demo.launch(server_port=7863, share=True)
+

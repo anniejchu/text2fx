@@ -241,7 +241,8 @@ def text2fx(
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
     out_sig = preprocess_audio(out_sig)
     
-    out_params_dict = channel.save_params_to_dict(params.detach().cpu())
+    out_params = params.detach().cpu()
+    out_params_dict = channel.save_params_to_dict(out_params)
 
     if export_audio:
         if sig.batch_size == 1:
@@ -257,7 +258,7 @@ def text2fx(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
     
-    return out_sig, out_params_dict#params.detach().cpu()
+    return out_sig, out_params, out_params_dict#params.detach().cpu()
 
 
 # if __name__ == "__main__":

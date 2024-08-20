@@ -231,7 +231,7 @@ def functional_parametric_eq_40band(
     # print(band_freqs)
     qs = torch.tensor([q], device=x.device).reshape(1).repeat(nb*nc)
     # print(qs)
-    for i in range(len(band_freqs)):
+    for i in range(len(EQ_freq_bands)):
         band_gain_i = locals()[f"band{i}_gain_db"] 
 
         # Design peak filter

@@ -59,7 +59,7 @@ def main(audio_dir: Union[str, Path],
     print(sampled_audio_files, sampled_descriptions)
     fx_channel = tc.create_channel(fx_chain)
 
-    signal_effected, out_params_dict = text2fx(
+    signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig=in_sig_batch, 
         text=sampled_descriptions, 

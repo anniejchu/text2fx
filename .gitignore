@@ -18,3 +18,5 @@ __pycache__/
 **/full_samples/
 **/extra/
 assets/*
+
+test_*
