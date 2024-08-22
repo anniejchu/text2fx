@@ -115,7 +115,7 @@ def text2fx2(
     clap = get_model(model_name)
    
     #initiating the projector
-    projector = None
+    # projector = None
     if projector_pth:
         projector = Projector(1024, 1024) #TODO: hardcoded, but change
         projector.to(device)
@@ -210,9 +210,9 @@ def text2fx2(
     ]
     embedding_target = clap.get_text_embeddings(text_processed).detach()
     print(f'PRE PROJECTOR: {embedding_target}')
-    if projector:
-        embedding_target = projector(embedding_target.to(device))
-        print(f'POST PROJECTOR: {embedding_target}')
+    # if projector:
+    embedding_target = projector(embedding_target.to(device))
+    print(f'POST PROJECTOR: {embedding_target}')
 
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
@@ -247,8 +247,8 @@ def text2fx2(
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
-        if projector:
-            embedding_effected = projector(embedding_effected.to(device))
+        # if projector:
+        embedding_effected = projector(embedding_effected.to(device))
 
         # loss
         if criterion == "directional_loss":
