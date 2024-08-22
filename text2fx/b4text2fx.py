@@ -54,10 +54,10 @@ device = DEVICE #torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
 def get_model(model_choice: str):
     if model_choice=="laion_clap":
-        from text2fx.laionclap import LAIONCLAPWrapper
+        from .laionclap import LAIONCLAPWrapper
         model = LAIONCLAPWrapper()
     elif model_choice == "ms_clap":
-        from text2fx.msclap import MSCLAPWrapper
+        from .msclap import MSCLAPWrapper
         model = MSCLAPWrapper()
     else:
         raise ValueError('choose a model1!!!!!!')

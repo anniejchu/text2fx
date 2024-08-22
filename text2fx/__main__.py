@@ -67,7 +67,7 @@ def get_default_channel():
         # Distortion(sample_rate=SAMPLE_RATE),
     )
 
-def text2fx(
+def text2fx1(
     model_name: str,
     sig: AudioSignal, 
     text: Union[str, List[str]],   
