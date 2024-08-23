@@ -122,11 +122,11 @@ def text2fx2(
         print(f' APPLYING {projector_pth}') 
         model_dict = torch.load(projector_pth, "cpu")
         projector.load_state_dict(model_dict["state_dict"], strict=True)
-        print('loaded projector')
+        # print('loaded projector')
         for p in projector.parameters():
             p.requires_grad = False
-        print('froze projector')
-    print(projector)
+        # print('froze projector')
+    # print(projector)
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
@@ -150,7 +150,9 @@ def text2fx2(
             torch.zeros(sig.batch_size, channel.num_params).to(device) 
         )
     elif params_init_type=='random':
-        params_single = torch.randn(1, channel.num_params).to(device) 
+        # params_single = torch.randn(1, channel.num_params).to(device) 
+        params_single = torch.normal(mean=0, std=0.2, size=(1, channel.num_params)).to(device)
+
         params = torch.nn.parameter.Parameter(
             #params_single.repeat(sig.batch_size, 1).to(device)
             torch.randn(sig.batch_size, channel.num_params).to(device) 
@@ -209,10 +211,10 @@ def text2fx2(
         f"this sound is {t}" for t in text
     ]
     embedding_target = clap.get_text_embeddings(text_processed).detach()
-    print(f'PRE PROJECTOR: {embedding_target}')
+    # print(f'PRE PROJECTOR: {embedding_target}')
     # if projector:
     embedding_target = projector(embedding_target.to(device))
-    print(f'POST PROJECTOR: {embedding_target}')
+    # print(f'POST PROJECTOR: {embedding_target}')
 
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
