@@ -151,7 +151,7 @@ def text2fx2(
         )
     elif params_init_type=='random':
         # params_single = torch.randn(1, channel.num_params).to(device) 
-        params_single = torch.normal(mean=0, std=0.2, size=(1, channel.num_params)).to(device)
+        params_single = torch.normal(mean=0, std=0.5, size=(1, channel.num_params)).to(device)
 
         params = torch.nn.parameter.Parameter(
             #params_single.repeat(sig.batch_size, 1).to(device)
