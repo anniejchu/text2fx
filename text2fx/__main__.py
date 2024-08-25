@@ -174,6 +174,7 @@ def text2fx1(
         f"this sound is {t}" for t in text
     ]
     embedding_target = clap.get_text_embeddings(text_processed).detach()
+    # print(embedding_target)
 
     if criterion == "directional_loss":
         audio_in_emb = clap.get_audio_embeddings(sig.to(device)).detach()
