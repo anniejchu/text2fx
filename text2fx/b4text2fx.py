@@ -2,7 +2,6 @@ from pathlib import Path
 from tqdm import tqdm
 
 import torch
-import numpy
 import audiotools as at
 import dasp_pytorch
 from audiotools import AudioSignal
@@ -14,10 +13,19 @@ from typing import Union, List
 
 from torch.utils.tensorboard import SummaryWriter
 
-# from msclap import CLAP
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio, download_file
+from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE, PRETRAINED_DIR
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio
-from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
+
+import torchaudio.transforms as T
+import numpy as np
+import dasp_pytorch
+from audiotools import AudioSignal
+from typing import Iterable
+import random
+
+from msclap import CLAP
+import matplotlib.pyplot as plt
 
 
 # Allow local imports
@@ -49,7 +57,6 @@ python -m text2fx --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"
                  --
 """
 device = DEVICE #torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
-
 
 
 def get_model(model_choice: str):
@@ -127,7 +134,7 @@ def text2fx2(
         for p in projector.parameters():
             p.requires_grad = False
     print('froze SIGMOIDED!!1')
-    # print(projector)
+    print(projector)
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
@@ -310,29 +317,6 @@ def text2fx2(
         writer.close()
     
     return out_sig, out_params, out_params_dict#params.detach().cpu()
-
-
-from pathlib import Path
-from tqdm import tqdm
-import datetime
-import unicodedata
-import re
-
-import torch
-import torchaudio.transforms as T
-import numpy as np
-import audiotools as at
-import dasp_pytorch
-from audiotools import AudioSignal
-from typing import Iterable
-import random
-from torch.utils.tensorboard import SummaryWriter
-
-from msclap import CLAP
-
-import matplotlib.pyplot as plt
-from text2fx.core import AbstractCLAPWrapper, download_file 
-from text2fx.constants import PRETRAINED_DIR, DEVICE
 
 
 #REQUIRES TRANSFORMERS >= 4.34.0
