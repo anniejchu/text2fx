@@ -89,11 +89,6 @@ def clip_directional_loss(
 def get_default_channel():
     return Channel(
         dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
-        
-        # Distortion(sample_rate=SAMPLE_RATE),
     )
 
 def text2fx2(
@@ -102,6 +97,7 @@ def text2fx2(
     text: Union[str, List[str]],   
     channel: Channel,
     projector_pth: str = None,
+    projector_hidden_dim: int = 1024,
     device: str = "cuda" if torch.cuda.is_available() else "cpu", 
     log_audio_every_n: int = 25, 
     lr: float = 1e-2, 
@@ -114,27 +110,22 @@ def text2fx2(
     export_audio: bool = False,
     log_tensorboard: bool = False,
 ):
-    # ah yes, the max morrison trick of hiding global variables as function members
-    # prevents loading the model everytime w/o needing to set it first as global variable
-    # if model=='ms_clap':
-    # at.util.seed(seed_i) # for doing fixing random parameters
 
     clap = get_model(model_name)
 
     #initiating the projector
     # projector = None
     if projector_pth:
-        projector = Projector(1024, 1024) #TODO: hardcoded, but change
+        projector = Projector(1024, 1024, projector_hidden_dim) #TODO: hardcoded, but change
         projector.to(device)
-        print(f' APPLYING {projector_pth}') 
+        # print(f' APPLYING {projector_pth}') 
         model_dict = torch.load(projector_pth, "cpu")
         projector.load_state_dict(model_dict["state_dict"], strict=True)
         # print('loaded projector')
-        projector.eval() #TODO: TRY IN JUPYTER NOTEBOOK
+        projector.eval()
         for p in projector.parameters():
             p.requires_grad = False
-    print('froze SIGMOIDED!!1')
-    print(projector)
+    # print(projector)
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
@@ -234,6 +225,9 @@ def text2fx2(
         ]
         text_anchor_emb = clap.get_text_embeddings(text_neg_processed).detach()
 
+
+    # Collecting individual losses
+    final_losses = []
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
     for n in pbar:
@@ -267,13 +261,18 @@ def text2fx2(
 
         # loss
         if criterion == "directional_loss":
-            loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).mean()
+            batch_loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb)
+            # loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).mean()
         elif criterion == "standard": #is neg dot product loss aims to minimize the dot prod b/w dissimilar items, no direction intake
-            loss = -(embedding_effected @ embedding_target.T).mean()
+            batch_loss = -(embedding_effected @ embedding_target.T)
+            # loss = -(embedding_effected @ embedding_target.T).mean()
         elif criterion == "cosine-sim": # cosine_sim loss aims to maximize the cosine similarity between similar items, normalized
-            loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).mean()
+            batch_loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1)
+            # loss = 1 - torch.cosine_similarity(embedding_effected, embedding_target, dim=-1).mean()
         else:
             raise ValueError(f"Criterion {criterion} not recognized")
+
+        loss = batch_loss.mean()
         if writer: 
             writer.add_scalar("loss", loss.item(), n)
 
@@ -283,6 +282,10 @@ def text2fx2(
         optimizer.step()
 
         pbar.set_description(f"step: {n+1}/{n_iters}, loss: {loss.item():.3f}")
+
+        #saving last batch_loss
+        if n == n_iters - 1:
+            final_losses = batch_loss.detach().cpu().numpy()
 
         if log_tensorboard:
             if n % log_audio_every_n == 0:
@@ -294,6 +297,9 @@ def text2fx2(
     if log_tensorboard or export_audio:
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
+    
+    min_loss_index = int(np.argmin(final_losses))
+
     # breakpoint()
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
@@ -316,7 +322,7 @@ def text2fx2(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
     
-    return out_sig, out_params, out_params_dict#params.detach().cpu()
+    return out_sig, out_params, out_params_dict, final_losses, min_loss_index#params.detach().cpu()
 
 
 #REQUIRES TRANSFORMERS >= 4.34.0
