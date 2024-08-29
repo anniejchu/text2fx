@@ -94,7 +94,7 @@ def text2fx1(
     # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
-            save_dir = create_save_dir(text, RUNS_DIR)
+            save_dir = create_save_dir(f'{text}_b2_lr_{lr}_{criterion}', RUNS_DIR)
         else:
             save_dir = Path(save_dir)
             save_dir.mkdir(exist_ok=True, parents=True)
@@ -115,6 +115,14 @@ def text2fx1(
     elif params_init_type=='random':
         # params_single = torch.randn(1, channel.num_params).to(device) 
         params_single = torch.normal(mean=0, std=0.5, size=(1, channel.num_params)).to(device)
+
+        params = torch.nn.parameter.Parameter(
+            #params_single.repeat(sig.batch_size, 1).to(device)
+            torch.randn(sig.batch_size, channel.num_params).to(device) 
+        )
+    elif params_init_type=='super_random':
+        print('suepr andom')
+        params_single = torch.randn(1, channel.num_params).to(device) 
 
         params = torch.nn.parameter.Parameter(
             #params_single.repeat(sig.batch_size, 1).to(device)

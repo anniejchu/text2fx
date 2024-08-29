@@ -130,7 +130,7 @@ def text2fx2(
     # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
-            save_dir = create_save_dir(text, RUNS_DIR)
+            save_dir = create_save_dir(f'{text}_b4_lr_{lr}_{criterion}', RUNS_DIR)
         else:
             save_dir = Path(save_dir)
             save_dir.mkdir(exist_ok=True, parents=True)
@@ -151,6 +151,13 @@ def text2fx2(
     elif params_init_type=='random':
         # params_single = torch.randn(1, channel.num_params).to(device) 
         params_single = torch.normal(mean=0, std=0.5, size=(1, channel.num_params)).to(device)
+
+        params = torch.nn.parameter.Parameter(
+            #params_single.repeat(sig.batch_size, 1).to(device)
+            torch.randn(sig.batch_size, channel.num_params).to(device) 
+        )
+    elif params_init_type=='super_random':
+        params_single = torch.randn(1, channel.num_params).to(device) 
 
         params = torch.nn.parameter.Parameter(
             #params_single.repeat(sig.batch_size, 1).to(device)
@@ -292,7 +299,7 @@ def text2fx2(
                 # Save audio
                 signal_effected.detach().cpu().ensure_max_of_audio().write_audio_to_tb("effected", writer, n)
                 if writer:
-                    writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
+                    writer.add_audio("b4_effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
         
     if log_tensorboard or export_audio:
         with open(log_file, "a") as log:
@@ -319,7 +326,7 @@ def text2fx2(
 
     # out_sig.write(save_dir / "final.wav")
     if writer:
-        writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
+        writer.add_audio("b4_final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
     
     return out_sig, out_params, out_params_dict, final_losses, min_loss_index#params.detach().cpu()
