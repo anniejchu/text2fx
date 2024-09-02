@@ -90,7 +90,6 @@ def text2fx1(
     # at.util.seed(seed_i) # for doing fixing random parameters
 
     clap = get_model(model_name)
-
     # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
@@ -119,15 +118,16 @@ def text2fx1(
         params = torch.nn.parameter.Parameter(
             #params_single.repeat(sig.batch_size, 1).to(device)
             torch.randn(sig.batch_size, channel.num_params).to(device) 
+            # torch.normal(mean=0, std=0.5, size=(sig.batch_size, channel.num_params)).to(device)
         )
     elif params_init_type=='super_random':
-        print('suepr andom')
-        params_single = torch.randn(1, channel.num_params).to(device) 
+        params_single = torch.randn(1, channel.num_params).to(device) * 4
 
         params = torch.nn.parameter.Parameter(
-            #params_single.repeat(sig.batch_size, 1).to(device)
-            torch.randn(sig.batch_size, channel.num_params).to(device) 
+            (torch.randn(sig.batch_size, channel.num_params).to(device) * 8) 
         )
+        print('sueprandom')
+
     else:
         raise ValueError
     
@@ -154,6 +154,8 @@ def text2fx1(
     #preprocessing initial sample
     sig = preprocess_audio(sig).to(device)
     # log what our initial effect sounds like (w/ random parameters applied)
+
+
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
     if writer:
         writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
@@ -281,7 +283,10 @@ def text2fx1(
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
     
-    return out_sig, out_params, out_params_dict, final_losses, min_loss_index#params.detach().cpu()
+    init_sig_out = init_sig.detach().cpu()
+    init_sig_out = preprocess_audio(init_sig_out)
+
+    return out_sig, out_params, out_params_dict, final_losses, min_loss_index, init_sig_out#params.detach().cpu()
 
 
 # if __name__ == "__main__":
