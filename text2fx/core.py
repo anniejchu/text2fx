@@ -25,8 +25,10 @@ from collections import defaultdict
 
 
 from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH, DEVICE
-from dasp_pytorch.modules import normalize
+# from dasp_pytorch.modules import normalize
 
+def norm(val, min_val, max_val):
+    return (val - min_val) / (max_val - min_val)
 
 class AbstractCLAPWrapper:
     def preprocess_audio(self, signal: AudioSignal) -> AudioSignal:
@@ -141,7 +143,8 @@ class Channel(torch.nn.Module):
             all_params[m.__class__.__name__] = denorm_param_dict
 
         return all_params
-    
+
+
 class ParametricEQ_40band(dasp_pytorch.modules.Processor):
     def __init__(
         self,
@@ -175,6 +178,30 @@ class ParametricEQ_40band(dasp_pytorch.modules.Processor):
 
         self.num_params = len(self.param_ranges)
 
+
+
+# def normalize_param_dict(param_dict: dict, fx):
+#     """Given parameters on (0,1) restore them to the ranges expected by the processor.
+
+#     Args:
+#         param_dict (dict): Dictionary of parameter tensors on (0,1).
+
+#     Returns:
+#         dict: Dictionary of parameter tensors on their full range.
+
+#     """
+#     all_params = {}
+#     params_count = 0
+#     denorm_param_dict = {}
+#     for param_name, param_tensor in param_dict['ParametricEQ'].items():
+#         # print(param_name, param_tensor)
+#         param_val_denorm = normalize(
+#             param_tensor[0],
+#             fx.param_ranges[param_name][0],
+#             fx.param_ranges[param_name][1],
+#         )
+#         denorm_param_dict[param_name] = param_val_denorm
+#     return denorm_param_dict
 def functional_parametric_eq_40band(
         x: torch.Tensor, 
         sample_rate: int, 
