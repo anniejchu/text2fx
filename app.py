@@ -20,7 +20,7 @@ ARTIFACTS_DIR.mkdir()
 def find_params(data):
     shutil.rmtree(ARTIFACTS_DIR)
     ARTIFACTS_DIR.mkdir()
-    
+
     global channel
     # print(data[input_audio])
     # print(data[text])
@@ -32,7 +32,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 100,
+        n_iters= 600,
     )
     assert output_sig.path_to_file is not None
 
