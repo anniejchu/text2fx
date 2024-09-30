@@ -137,11 +137,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
             gr.Markdown(f"### {band}")
             with gr.Row():
                 for k, range in band_dict.items(): 
-                    param_type = extract_label(k)
-                    if param_type == 'cutoff_freq':
-                        scale = 2
-                    else:
-                        scale = 1
+                    scale = 2 if extract_label(k) == 'cutoff_freq' else 1
+
                     params_ui[k] = gr.Slider(
                         # label=f'{extract_label(k)} ({range[0]}, {range[1]})',
                         label = k,
