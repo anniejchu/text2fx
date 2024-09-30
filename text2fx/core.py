@@ -512,13 +512,15 @@ def convert_to_tensors(converted_settings):
 def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], sample_rate: Optional[int] = None) -> AudioSignal:
     #audio can be filename or AudioSignal; if tensor, must provide sample_rate
     if isinstance(audio_path_or_array, (str, Path)):
-        return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).normalize(-24)
+        return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+        #return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).normalize(-24)
+
     elif isinstance(audio_path_or_array, AudioSignal):
-        return audio_path_or_array.to_mono().resample(SAMPLE_RATE).normalize(-24)
+        return audio_path_or_array.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()#.normalize(-24)
     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
         if sample_rate is None:
             raise ValueError("Must provide sample_rate if input is a tensor or ndarray")
-        return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).normalize(-24)
+        return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()#.normalize(-24)
     else: 
         raise ValueError("not audiosignal, tensor, str, path or array")
     

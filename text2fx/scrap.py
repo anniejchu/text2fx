@@ -287,7 +287,7 @@ def text2fx_paper(
     # breakpoint()
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig = preprocess_audio(out_sig)
+    # out_sig = preprocess_audio(out_sig)
     
     final_params = params.detach().cpu()
     final_params_dict = channel.save_params_to_dict(final_params)
@@ -309,7 +309,7 @@ def text2fx_paper(
         writer.close()
     
     init_sig_out = init_sig.detach().cpu()
-    init_sig_out = preprocess_audio(init_sig_out)
+    # init_sig_out = preprocess_audio(init_sig_out)
 
     return out_sig, final_params, final_params_dict#, final_losses, min_loss_index, init_sig_out#params.detach().cpu()
     # return out_sig, final_params, final_params_dict, final_losses, min_loss_index, init_sig_out#params.detach().cpu()

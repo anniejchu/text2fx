@@ -19,11 +19,11 @@ def find_params(data):
     # breakpoint()
     output_sig, out_params, out_params_dict = text2fx(
         model_name = 'ms_clap',
-        sig = at.AudioSignal(data[input_audio]), 
+        sig = at.AudioSignal(data[input_audio], duration=3), 
         text=data[text],
         export_audio=True,
         channel=channel,
-        criterion='directional_loss',#data[criterion],
+        criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
         n_iters= 600,
         # save_dir='/tmp/gradio/f6bc142ba5459e2e8db732b3665face1592bdaa2/'
@@ -78,14 +78,17 @@ def apply_params(kwargs):
     params = params_list.expand(in_sig.batch_size, -1) #shape = (n_batch, n_params)
 
     print(params)
-    out_sig = channel(in_sig.clone(), params).ensure_max_of_audio()
+    out_sig = channel(in_sig.clone(), params)
+    out_sig = out_sig.ensure_max_of_audio()
 
     assert out_sig.path_to_file is not None
-    out_path ='test.wav'
-    out_sig.write(out_path)
+    # out_path ='test.wav'
+    # out_sig.write(out_path)
+    out_sig.write(out_sig.path_to_file)
+
     # print(out_sig.path_to_file)
 
-    return out_path #out_sig.path_to_file
+    return out_sig.path_to_file #out_path
 
 
 channel = tc.create_channel(['eq'])
