@@ -109,22 +109,27 @@ def apply_params(kwargs):
 channel = tc.create_channel(['eq'])
                             
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("### 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
+    gr.Markdown("## 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
     input_audio = gr.Audio(label="a sound", type="filepath")
 
     # ------ Run Text2FX to find optimal parameters ------
     # ==== setting up UI
     # -- no grouping
-    text = gr.Textbox(lines=5, label="I want this sound to be ...")
-    process_button = gr.Button("Find EQ parameters!")
 
+    gr.Markdown("### Text2FX This")
     with gr.Row():
-        output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
-        output_params = gr.JSON(label='Text2FX Params Preview params') #these are the output parameters
+        with gr.Column():
+            text = gr.Textbox(lines=5, label="I want this sound to be ...")
+            process_button = gr.Button("Text2FX - Find & Apply EQ params!")
+        with gr.Column():
+            output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
+            output_params = gr.JSON(label='Text2FX Params Preview') #these are the output parameters
 
     #setting the sliders
     # (temporary) Output Audiosignal: apply EQ to params
+    gr.Markdown(f"### 6-Band Parametric EQ Controls")
     params_ui = {}
+
     for m in channel.modules:
         band_list = ["low_shelf", "band0", "band1", "band2", "band3", "high_shelf"]
         band_dicts = []
@@ -134,7 +139,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 
         for band_dict, band in zip(band_dicts, band_list):
         # for band_dict in band_dicts:
-            gr.Markdown(f"### {band}")
+            gr.Markdown(f"***{band}***")
             with gr.Row():
                 for k, range in band_dict.items(): 
                     scale = 2 if extract_label(k) == 'cutoff_freq' else 1
