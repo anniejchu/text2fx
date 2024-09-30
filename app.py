@@ -47,13 +47,14 @@ def find_params(data):
     detensor_params = tc.detensor_dict(out_params_dict)
     # print(detensor_params)
     params_out = []
+    test_dict = {}
     for m in detensor_params:
         # print(m)
         param_dict = detensor_params[m]
         for k, value in param_dict.items():
             # print(k, value[0])
             params_out.append(value[0])
-
+            test_dict[k] = value[0]
     # list_of_params = list(detensor_params.values())
     # print(list_of_params)
 
@@ -62,7 +63,7 @@ def find_params(data):
 
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     output_sig.write(export_path)
-    return *params_out, export_path, param_dict
+    return *params_out, export_path, test_dict
 
 def apply_params(kwargs):
     shutil.rmtree(ARTIFACTS_DIR)
@@ -83,8 +84,6 @@ def apply_params(kwargs):
     new_params = {'ParametricEQ': new_params}
     print(new_params)
     params_dict = normalize_param_dict(new_params, channel)
-
-    # print(params_dict)
 
     in_sig = at.AudioSignal(input_audio_path).resample(44_100).to_mono().ensure_max_of_audio()
     
@@ -107,10 +106,9 @@ def apply_params(kwargs):
 
     return export_path, plot_path
 
-
 channel = tc.create_channel(['eq'])
                             
-with gr.Blocks() as demo:
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
     gr.Markdown("### 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
     input_audio = gr.Audio(label="a sound", type="filepath")
 
