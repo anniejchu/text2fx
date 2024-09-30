@@ -63,7 +63,7 @@ def find_params(data):
 
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     output_sig.write(export_path)
-    return *params_out, export_path, test_dict
+    return export_path, test_dict, *params_out
 
 def apply_params(kwargs):
     shutil.rmtree(ARTIFACTS_DIR)
@@ -118,6 +118,10 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     text = gr.Textbox(lines=5, label="I want this sound to be ...")
     process_button = gr.Button("Find EQ parameters!")
 
+    with gr.Row():
+        output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
+        output_params = gr.JSON(label='Text2FX Params Preview params') #these are the output parameters
+
     #setting the sliders
     # (temporary) Output Audiosignal: apply EQ to params
     params_ui = {}
@@ -148,15 +152,14 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                         scale=scale
                     )
   
-    with gr.Row():
-        output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
-        output_params = gr.JSON(label='Text2FX Params Preview params') #these are the output parameters
 
     # ==== Actual process function to find params
     process_button.click(
         find_params, 
         inputs={input_audio, text},
-        outputs = set(params_ui.values()) | {output_audio_to_check, output_params} 
+        # outputs = set(params_ui.values()) | {output_audio_to_check, output_params} 
+        outputs = {output_audio_to_check, output_params} | set(params_ui.values()) 
+
     )
 
     # ------ Apply Text2FX-parameters to original file ------
