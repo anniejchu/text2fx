@@ -29,8 +29,8 @@ def plot_response(
     y = y.resample(sample_rate)
     y_hat = y_hat.resample(sample_rate)
     
-    y = y.to_mono().audio_data.flatten().cpu().detach()
-    y_hat = y_hat.to_mono().audio_data.flatten().cpu().detach()
+    y = y.to_mono().ensure_max_of_audio().audio_data.flatten().cpu().detach()
+    y_hat = y_hat.to_mono().ensure_max_of_audio().audio_data.flatten().cpu().detach()
 
     # compute frequency response of y
     Y = torch.fft.rfft(y)
@@ -72,7 +72,7 @@ def plot_response(
     # ax.set_xlabel("Frequency (Hz)")
     # ax.set_ylabel("Magnitude (dB)")
     ax.set_xlim(100, 20000)
-    ax.set_ylim(-60, 60)
+    # ax.set_ylim(-60, 60)
     ax.set_xlabel("Frequency (Hz)", fontsize=12, fontweight='bold')
     ax.set_ylabel("Magnitude (dB)", fontsize=12, fontweight='bold')
 

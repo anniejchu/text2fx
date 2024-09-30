@@ -37,7 +37,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 600,
+        n_iters= 50,
     )
     assert output_sig.path_to_file is not None
 
@@ -121,6 +121,7 @@ with gr.Blocks() as demo:
     process_button = gr.Button("Find EQ parameters!")
 
     #setting the sliders
+    # (temporary) Output Audiosignal: apply EQ to params
     params_ui = {}
     for m in channel.modules:
         band_list = ["low_shelf", "band0", "band1", "band2", "band3", "high_shelf"]
@@ -134,16 +135,22 @@ with gr.Blocks() as demo:
             gr.Markdown(f"### {band}")
             with gr.Row():
                 for k, range in band_dict.items(): 
+                    param_type = extract_label(k)
+                    if param_type == 'cutoff_freq':
+                        scale = 2
+                    else:
+                        scale = 1
                     params_ui[k] = gr.Slider(
                         # label=f'{extract_label(k)} ({range[0]}, {range[1]})',
                         label = k,
                         minimum=range[0],
                         maximum=range[1],
-                        value=(range[0] + range[1]) / 2
+                        value=(range[0] + range[1]) / 2,
+                        info = f'Range: {range[0]}, {range[1]}',
+                        scale=scale
                     )
   
-    # (temporary) Output Audiosignal: apply EQ to params
-    output_audio_to_check = gr.Audio(label="output to check", type="filepath")
+    output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
 
     # ==== Actual process function to find params
     process_button.click(
