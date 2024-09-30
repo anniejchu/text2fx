@@ -17,6 +17,11 @@ ARTIFACTS_DIR = Path('/home/annie/research/text2fx/runs/app_artifacts')
 shutil.rmtree(ARTIFACTS_DIR)
 ARTIFACTS_DIR.mkdir()
 
+def extract_label(k):
+    parts = k.split('_')  # Split the string by '_'
+    label = '_'.join(parts[-2:])  # Join the last two parts
+    return label
+
 def find_params(data):
     shutil.rmtree(ARTIFACTS_DIR)
     ARTIFACTS_DIR.mkdir()
@@ -96,18 +101,11 @@ def apply_params(kwargs):
 
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     out_sig.write(export_path)
-    # assert out_sig.path_to_file is not None
-    # out_sig.write(out_sig.path_to_file)
 
-    # TODO: add plot_response image
-    print(in_sig.samples)
-    print(out_sig.samples)
-    
     plot_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.png'
-    # out_plot_path = Path(out_sig.path_to_file).with_suffix('.png')
-    out_plot = tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
+    tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
 
-    return export_path, plot_path #out_path
+    return export_path, plot_path
 
 
 channel = tc.create_channel(['eq'])
@@ -122,14 +120,8 @@ with gr.Blocks() as demo:
     text = gr.Textbox(lines=5, label="I want this sound to be ...")
     process_button = gr.Button("Find EQ parameters!")
 
-    # params_ui = {}
-    # for m in channel.modules:
-    #     for k, range in m.param_ranges.items():
-    #         params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
-
     #setting the sliders
     params_ui = {}
-
     for m in channel.modules:
         band_list = ["low_shelf", "band0", "band1", "band2", "band3", "high_shelf"]
         band_dicts = []
@@ -137,45 +129,19 @@ with gr.Blocks() as demo:
             band_dict =  {k: v for k, v in m.param_ranges.items() if band in k}  
             band_dicts.append(band_dict)
 
-        # param_ranges_ls = {k: v for k, v in m.param_ranges.items() if "low_shelf" in k}
-        # param_ranges_band0 = {k: v for k, v in m.param_ranges.items() if "band0" in k}
-        # param_ranges_band1 = {k: v for k, v in m.param_ranges.items() if "band1" in k}
-        # param_ranges_band2 = {k: v for k, v in m.param_ranges.items() if "band2" in k}
-        # param_ranges_band3 = {k: v for k, v in m.param_ranges.items() if "band3" in k}
-        # param_ranges_hs = {k: v for k, v in m.param_ranges.items() if "high_shelf" in k}
-        
         for band_dict, band in zip(band_dicts, band_list):
         # for band_dict in band_dicts:
+            gr.Markdown(f"### {band}")
             with gr.Row():
-                gr.Markdown(f"### {band}")
                 for k, range in band_dict.items(): 
-                    #             # print(m.param_ranges)
-                    #             # print(k, range)
                     params_ui[k] = gr.Slider(
-                        label=k,
+                        # label=f'{extract_label(k)} ({range[0]}, {range[1]})',
+                        label = k,
                         minimum=range[0],
                         maximum=range[1],
                         value=(range[0] + range[1]) / 2
                     )
-    # params_ui = {}
-    # slider_count = 0  # Track the number of sliders added
-    # for m in channel.modules:
-    #     with gr.Row():
-    #         for k, range in m.param_ranges.items():
-    #             # print(m.param_ranges)
-    #             # print(k, range)
-    #             params_ui[k] = gr.Slider(
-    #                 label=k,
-    #                 minimum=range[0],
-    #                 maximum=range[1],
-    #                 value=(range[0] + range[1]) / 2
-    #             )
-    #             slider_count += 1
-
-    #             # Create a new row after every 3 sliders
-    #             if slider_count % 3 == 0:
-    #                 gr.Row()  # Close the current row and create a new one
-
+  
     # (temporary) Output Audiosignal: apply EQ to params
     output_audio_to_check = gr.Audio(label="output to check", type="filepath")
 
@@ -194,13 +160,13 @@ with gr.Blocks() as demo:
     with gr.Row():
         output_audio = gr.Audio(label="output sound", type="filepath")
         output_plot = gr.Image(label = "frequency response", type = "filepath")
-    # output_params = gr.JSON(label='output params') #these are the output parameters
+        # output_params = gr.JSON(label='output params') #these are the output parameters
 
     # ==== Actual process function to apply params
     apply_button.click(
         apply_params, 
         inputs={input_audio} | set(params_ui.values()),
-        outputs={output_audio, output_plot} #not updating
+        outputs={output_audio, output_plot}
     )
 demo.launch(server_port=7863)
 
