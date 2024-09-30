@@ -64,17 +64,17 @@ def plot_response(
     )
 
     # plot frequency response
-    ax.plot(freqs, Y_db.squeeze().cpu().numpy(), label="Original",color='gray',linewidth=5, alpha=1)
-    ax.plot(freqs, Y_hat_db.cpu().squeeze().numpy(), label=f"Effected",linewidth=5, alpha=1)
+    ax.plot(freqs, Y_db.squeeze().cpu().numpy(), label="Original",color='gray',linewidth=2, alpha=1)
+    ax.plot(freqs, Y_hat_db.cpu().squeeze().numpy(), label=f"Effected",linewidth=2, alpha=1)
 
     if tag:
         ax.set_title(f'{tag}')
     # ax.set_xlabel("Frequency (Hz)")
     # ax.set_ylabel("Magnitude (dB)")
     ax.set_xlim(100, 20000)
-    ax.set_ylim(-40, 40)
-    ax.set_xlabel("Frequency (Hz)", fontsize=14, fontweight='bold')
-    ax.set_ylabel("Magnitude (dB)", fontsize=14, fontweight='bold')
+    # ax.set_ylim(-40, 40)
+    ax.set_xlabel("Frequency (Hz)", fontsize=12, fontweight='bold')
+    ax.set_ylabel("Magnitude (dB)", fontsize=12, fontweight='bold')
 
     ax.set_xscale("log")
     plt.legend()

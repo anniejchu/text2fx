@@ -100,46 +100,61 @@ channel = tc.create_channel(['eq'])
 with gr.Blocks() as demo:
     gr.Markdown("### 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
     input_audio = gr.Audio(label="a sound", type="filepath")
-    text = gr.Textbox(lines=5, label="I want this sound to be ...")
-
-    # criterion = gr.Radio(["standard", "directional_loss", "cosine-sim"], label="criterion", value="cosine-sim")
-    # params_init_type = gr.Radio(["random", "zeros"], label="initialization parameters type", value="zeros")
-    # num_iters = gr.Slider(0, 1000, value=600, step=25,label="number of iterations")
-    # fx_chain = gr.Dropdown(["reverb", "eq", "compressor", "gain", "eq40"],  multiselect=True, label='Effects to include in FX chain', value=["eq"])
-
 
     # ------ Run Text2FX to find optimal parameters ------
     # ==== setting up UI
-    process_button = gr.Button("Find EQ parameters!")
     # EQ sliders, TODO: vertical mode
-    # params_ui = {}
-    # for m in channel.modules:
-    #     for k, range in m.param_ranges.items():
-    #         # print(range[0], range[1])
-    #         params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
 
-    #     print(m)
-    #     print(m.param_ranges)
+    # -- no grouping
+    text = gr.Textbox(lines=5, label="I want this sound to be ...")
+    process_button = gr.Button("Find EQ parameters!")
+
+    # with gr.Row():
+    #     params_ui = {}
+    #     for m in channel.modules:
+    #         for k, range in m.param_ranges.items():
+    #             params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
+
 
     params_ui = {}
-    slider_group = []  # To collect up to 3 sliders
-    all_slider_rows = []  # To collect rows of sliders
-
+    slider_count = 0  # Track the number of sliders added
     for m in channel.modules:
-        for i, (k, range) in enumerate(m.param_ranges.items()):
-            slider = gr.Slider(label=k, minimum=range[0], maximum=range[1], value=(range[0] + range[1]) / 2)
-            params_ui[k] = slider
-            slider_group.append(slider)
+        with gr.Row():
+            for k, range in m.param_ranges.items():
 
-            # If we have collected 3 sliders, group them into a horizontal row
-            if len(slider_group) == 3:
-                all_slider_rows.append(gr.Column(slider_group))  # Create a horizontal row of 3 sliders
-                slider_group = []  # Clear the group for the next set of sliders
+                params_ui[k] = gr.Slider(
+                    label=k,
+                    minimum=range[0],
+                    maximum=range[1],
+                    value=(range[0] + range[1]) / 2
+                )
+                slider_count += 1
 
-        # If there are remaining sliders (less than 3), add them in a final row
-        if slider_group:
-            all_slider_rows.append(gr.Column(slider_group))  # Add remaining sliders in a row
-            slider_group = []  # Clear the group after appending
+                # Create a new row after every 3 sliders
+                if slider_count % 3 == 0:
+                    gr.Row()  # Close the current row and create a new one
+
+
+    #----- failed horzontal grouping
+    # params_ui = {}
+    # slider_group = []  # To collect up to 3 sliders
+    # all_slider_rows = []  # To collect rows of sliders
+
+    # for m in channel.modules:
+    #     for i, (k, range) in enumerate(m.param_ranges.items()):
+    #         slider = gr.Slider(label=k, minimum=range[0], maximum=range[1], value=(range[0] + range[1]) / 2)
+    #         params_ui[k] = slider
+    #         slider_group.append(slider)
+
+    #         # If we have collected 3 sliders, group them into a horizontal row
+    #         if len(slider_group) == 3:
+    #             all_slider_rows.append(gr.Column(slider_group))  # Create a horizontal row of 3 sliders
+    #             slider_group = []  # Clear the group for the next set of sliders
+
+    #     # If there are remaining sliders (less than 3), add them in a final row
+    #     if slider_group:
+    #         all_slider_rows.append(gr.Column(slider_group))  # Add remaining sliders in a row
+    #         slider_group = []  # Clear the group after appending
 
 
     # (temporary) Output Audiosignal: apply EQ to params
@@ -157,8 +172,9 @@ with gr.Blocks() as demo:
     # Output Audio File: apply EQ to params
     apply_button = gr.Button("Apply EQ parameters!")
 
-    output_audio = gr.Audio(label="output sound", type="filepath")
-    output_plot = gr.Image(label = "frequency response", type = "filepath")
+    with gr.Row():
+        output_audio = gr.Audio(label="output sound", type="filepath")
+        output_plot = gr.Image(label = "frequency response", type = "filepath")
     # output_params = gr.JSON(label='output params') #these are the output parameters
 
     # ==== Actual process function to apply params
@@ -169,6 +185,5 @@ with gr.Blocks() as demo:
     )
 
 
-    
 demo.launch(server_port=7863)
 
