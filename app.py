@@ -3,12 +3,14 @@ import audiotools as at
 import gradio as gr
 import numpy as np
 
+from pathlib import Path
 from text2fx.text2fx_app import text2fx_paper as text2fx
 import text2fx.core as tc
 import text2fx.core_plotting as tcplot
 import torch
 import os
 from process_file_from_params import normalize_param_dict
+
 
 def find_params(data):
     global channel
@@ -86,10 +88,11 @@ def apply_params(kwargs):
 
     out_sig.write(out_sig.path_to_file)
 
-
     #TODO: add plot_response image
+    out_plot_path = Path(out_sig.path_to_file).with_suffix('.png')
+    out_plot = tcplot.plot_response(in_sig, out_sig, tag='out', save_path=out_plot_path)
 
-    return out_sig.path_to_file #out_path
+    return out_sig.path_to_file, out_plot_path #out_path
 
 
 channel = tc.create_channel(['eq'])
@@ -109,14 +112,35 @@ with gr.Blocks() as demo:
     # ==== setting up UI
     process_button = gr.Button("Find EQ parameters!")
     # EQ sliders, TODO: vertical mode
-    params_ui = {}
-    for m in channel.modules:
-        for k, range in m.param_ranges.items():
-            print(range[0], range[1])
-            params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
+    # params_ui = {}
+    # for m in channel.modules:
+    #     for k, range in m.param_ranges.items():
+    #         # print(range[0], range[1])
+    #         params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
 
-        print(m)
-        print(m.param_ranges)
+    #     print(m)
+    #     print(m.param_ranges)
+
+    params_ui = {}
+    slider_group = []  # To collect up to 3 sliders
+    all_slider_rows = []  # To collect rows of sliders
+
+    for m in channel.modules:
+        for i, (k, range) in enumerate(m.param_ranges.items()):
+            slider = gr.Slider(label=k, minimum=range[0], maximum=range[1], value=(range[0] + range[1]) / 2)
+            params_ui[k] = slider
+            slider_group.append(slider)
+
+            # If we have collected 3 sliders, group them into a horizontal row
+            if len(slider_group) == 3:
+                all_slider_rows.append(gr.Column(slider_group))  # Create a horizontal row of 3 sliders
+                slider_group = []  # Clear the group for the next set of sliders
+
+        # If there are remaining sliders (less than 3), add them in a final row
+        if slider_group:
+            all_slider_rows.append(gr.Column(slider_group))  # Add remaining sliders in a row
+            slider_group = []  # Clear the group after appending
+
 
     # (temporary) Output Audiosignal: apply EQ to params
     # output_audio_to_check = gr.Audio(label="output to check", type="filepath")
@@ -134,13 +158,14 @@ with gr.Blocks() as demo:
     apply_button = gr.Button("Apply EQ parameters!")
 
     output_audio = gr.Audio(label="output sound", type="filepath")
+    output_plot = gr.Image(label = "frequency response", type = "filepath")
     # output_params = gr.JSON(label='output params') #these are the output parameters
 
     # ==== Actual process function to apply params
     apply_button.click(
         apply_params, 
         inputs={input_audio} | set(params_ui.values()),
-        outputs={output_audio} #TODO: add image here?
+        outputs={output_audio, output_plot} #TODO: add image here?
     )
 
 
