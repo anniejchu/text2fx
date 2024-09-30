@@ -3,8 +3,9 @@ import audiotools as at
 import gradio as gr
 import numpy as np
 
-from text2fx.scrap import text2fx_paper as text2fx
+from text2fx.text2fx_app import text2fx_paper as text2fx
 import text2fx.core as tc
+import text2fx.core_plotting as tcplot
 import torch
 import os
 from process_file_from_params import normalize_param_dict
@@ -82,11 +83,11 @@ def apply_params(kwargs):
     out_sig = out_sig.ensure_max_of_audio()
 
     assert out_sig.path_to_file is not None
-    # out_path ='test.wav'
-    # out_sig.write(out_path)
+
     out_sig.write(out_sig.path_to_file)
 
-    # print(out_sig.path_to_file)
+
+    #TODO: add plot_response image
 
     return out_sig.path_to_file #out_path
 
@@ -94,19 +95,20 @@ def apply_params(kwargs):
 channel = tc.create_channel(['eq'])
                             
 with gr.Blocks() as demo:
-    gr.Markdown("### 💥 💥 💥 !!!!text2fx (baseline demo) !!!!! 💥 💥 💥")
+    gr.Markdown("### 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
     input_audio = gr.Audio(label="a sound", type="filepath")
-    text = gr.Textbox(lines=5, label="i want this sound to be ...")
+    text = gr.Textbox(lines=5, label="I want this sound to be ...")
+
     # criterion = gr.Radio(["standard", "directional_loss", "cosine-sim"], label="criterion", value="cosine-sim")
     # params_init_type = gr.Radio(["random", "zeros"], label="initialization parameters type", value="zeros")
     # num_iters = gr.Slider(0, 1000, value=600, step=25,label="number of iterations")
-    
     # fx_chain = gr.Dropdown(["reverb", "eq", "compressor", "gain", "eq40"],  multiselect=True, label='Effects to include in FX chain', value=["eq"])
 
-    process_button = gr.Button("find params -- hit it, lets go!")
 
-    # in_compare_audio = gr.Audio(label="input sound", type="filepath")
-
+    # ------ Run Text2FX to find optimal parameters ------
+    # ==== setting up UI
+    process_button = gr.Button("Find EQ parameters!")
+    # EQ sliders, TODO: vertical mode
     params_ui = {}
     for m in channel.modules:
         for k, range in m.param_ranges.items():
@@ -115,28 +117,30 @@ with gr.Blocks() as demo:
 
         print(m)
         print(m.param_ranges)
-    # display parameters (denormalize)
-        # pack widgets in a loop
 
-    #apply EQ to params
-    output_audio_to_check = gr.Audio(label="output to check", type="filepath")
+    # (temporary) Output Audiosignal: apply EQ to params
+    # output_audio_to_check = gr.Audio(label="output to check", type="filepath")
 
+    # ==== Actual process function to find params
     process_button.click(
         find_params, 
         inputs={input_audio, text},#, fx_chain}, 
-        outputs = set(params_ui.values()) | {output_audio_to_check}
-        # outputs={in_compare_audio, output_audio, output_params}
+        outputs = set(params_ui.values())# | {output_audio_to_check}
     )
 
-    apply_button = gr.Button("apply params!!!")
+    # ------ Apply Text2FX-parameters to original file ------
+    # ==== Setting up UI
+    # Output Audio File: apply EQ to params
+    apply_button = gr.Button("Apply EQ parameters!")
 
     output_audio = gr.Audio(label="output sound", type="filepath")
     # output_params = gr.JSON(label='output params') #these are the output parameters
 
+    # ==== Actual process function to apply params
     apply_button.click(
         apply_params, 
         inputs={input_audio} | set(params_ui.values()),
-        outputs={output_audio}
+        outputs={output_audio} #TODO: add image here?
     )
 
 
