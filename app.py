@@ -62,7 +62,7 @@ def find_params(data):
 
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     output_sig.write(export_path)
-    return *params_out, export_path
+    return *params_out, export_path, param_dict
 
 def apply_params(kwargs):
     shutil.rmtree(ARTIFACTS_DIR)
@@ -150,13 +150,15 @@ with gr.Blocks() as demo:
                         scale=scale
                     )
   
-    output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
+    with gr.Row():
+        output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
+        output_params = gr.JSON(label='Text2FX Params Preview params') #these are the output parameters
 
     # ==== Actual process function to find params
     process_button.click(
         find_params, 
         inputs={input_audio, text},
-        outputs = set(params_ui.values()) | {output_audio_to_check}
+        outputs = set(params_ui.values()) | {output_audio_to_check, output_params} 
     )
 
     # ------ Apply Text2FX-parameters to original file ------
