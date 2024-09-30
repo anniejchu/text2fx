@@ -10,9 +10,17 @@ import text2fx.core_plotting as tcplot
 import torch
 import os
 from process_file_from_params import normalize_param_dict
+import uuid
+import shutil
 
+ARTIFACTS_DIR = Path('/home/annie/research/text2fx/runs/app_artifacts')
+shutil.rmtree(ARTIFACTS_DIR)
+ARTIFACTS_DIR.mkdir()
 
 def find_params(data):
+    shutil.rmtree(ARTIFACTS_DIR)
+    ARTIFACTS_DIR.mkdir()
+    
     global channel
     # print(data[input_audio])
     # print(data[text])
@@ -24,7 +32,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 600,
+        n_iters= 100,
     )
     assert output_sig.path_to_file is not None
 
@@ -46,12 +54,16 @@ def find_params(data):
 
     output_sig.ensure_max_of_audio()
     assert output_sig.path_to_file is not None
-    output_sig.write(output_sig.path_to_file)
-    return *params_out, output_sig.path_to_file
+
+    export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
+    output_sig.write(export_path)
+    return *params_out, export_path
 
 def apply_params(kwargs):
+    shutil.rmtree(ARTIFACTS_DIR)
+    ARTIFACTS_DIR.mkdir()
     global channel
-    print('==========KWARGS')
+    # print('==========KWARGS')
     # print(kwargs)
 
     new_params = {}    
@@ -82,18 +94,20 @@ def apply_params(kwargs):
     out_sig = channel(in_sig.clone(), params)
     out_sig = out_sig.ensure_max_of_audio()
 
-    assert out_sig.path_to_file is not None
+    export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
+    out_sig.write(export_path)
+    # assert out_sig.path_to_file is not None
+    # out_sig.write(out_sig.path_to_file)
 
-
-    out_sig.write(out_sig.path_to_file)
-
-    #TODO: add plot_response image
+    # TODO: add plot_response image
     print(in_sig.samples)
     print(out_sig.samples)
-    out_plot_path = Path(out_sig.path_to_file).with_suffix('.png')
-    out_plot = tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='out', save_path=out_plot_path)
+    
+    plot_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.png'
+    # out_plot_path = Path(out_sig.path_to_file).with_suffix('.png')
+    out_plot = tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
 
-    return out_sig.path_to_file, out_plot_path #out_path
+    return export_path, plot_path #out_path
 
 
 channel = tc.create_channel(['eq'])
@@ -104,8 +118,6 @@ with gr.Blocks() as demo:
 
     # ------ Run Text2FX to find optimal parameters ------
     # ==== setting up UI
-    # EQ sliders, TODO: vertical mode
-
     # -- no grouping
     text = gr.Textbox(lines=5, label="I want this sound to be ...")
     process_button = gr.Button("Find EQ parameters!")
@@ -115,24 +127,54 @@ with gr.Blocks() as demo:
     #     for k, range in m.param_ranges.items():
     #         params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
 
+    #setting the sliders
     params_ui = {}
-    slider_count = 0  # Track the number of sliders added
-    for m in channel.modules:
-        with gr.Row():
-            for k, range in m.param_ranges.items():
-                # print(m.param_ranges)
-                # print(k, range)
-                params_ui[k] = gr.Slider(
-                    label=k,
-                    minimum=range[0],
-                    maximum=range[1],
-                    value=(range[0] + range[1]) / 2
-                )
-                slider_count += 1
 
-                # Create a new row after every 3 sliders
-                if slider_count % 3 == 0:
-                    gr.Row()  # Close the current row and create a new one
+    for m in channel.modules:
+        band_list = ["low_shelf", "band0", "band1", "band2", "band3", "high_shelf"]
+        band_dicts = []
+        for band in band_list:
+            band_dict =  {k: v for k, v in m.param_ranges.items() if band in k}  
+            band_dicts.append(band_dict)
+
+        # param_ranges_ls = {k: v for k, v in m.param_ranges.items() if "low_shelf" in k}
+        # param_ranges_band0 = {k: v for k, v in m.param_ranges.items() if "band0" in k}
+        # param_ranges_band1 = {k: v for k, v in m.param_ranges.items() if "band1" in k}
+        # param_ranges_band2 = {k: v for k, v in m.param_ranges.items() if "band2" in k}
+        # param_ranges_band3 = {k: v for k, v in m.param_ranges.items() if "band3" in k}
+        # param_ranges_hs = {k: v for k, v in m.param_ranges.items() if "high_shelf" in k}
+        
+        for band_dict, band in zip(band_dicts, band_list):
+        # for band_dict in band_dicts:
+            with gr.Row():
+                gr.Markdown(f"### {band}")
+                for k, range in band_dict.items(): 
+                    #             # print(m.param_ranges)
+                    #             # print(k, range)
+                    params_ui[k] = gr.Slider(
+                        label=k,
+                        minimum=range[0],
+                        maximum=range[1],
+                        value=(range[0] + range[1]) / 2
+                    )
+    # params_ui = {}
+    # slider_count = 0  # Track the number of sliders added
+    # for m in channel.modules:
+    #     with gr.Row():
+    #         for k, range in m.param_ranges.items():
+    #             # print(m.param_ranges)
+    #             # print(k, range)
+    #             params_ui[k] = gr.Slider(
+    #                 label=k,
+    #                 minimum=range[0],
+    #                 maximum=range[1],
+    #                 value=(range[0] + range[1]) / 2
+    #             )
+    #             slider_count += 1
+
+    #             # Create a new row after every 3 sliders
+    #             if slider_count % 3 == 0:
+    #                 gr.Row()  # Close the current row and create a new one
 
     # (temporary) Output Audiosignal: apply EQ to params
     output_audio_to_check = gr.Audio(label="output to check", type="filepath")
@@ -140,7 +182,7 @@ with gr.Blocks() as demo:
     # ==== Actual process function to find params
     process_button.click(
         find_params, 
-        inputs={input_audio, text},#, fx_chain}, 
+        inputs={input_audio, text},
         outputs = set(params_ui.values()) | {output_audio_to_check}
     )
 
