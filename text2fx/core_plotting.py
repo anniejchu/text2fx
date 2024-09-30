@@ -72,7 +72,7 @@ def plot_response(
     # ax.set_xlabel("Frequency (Hz)")
     # ax.set_ylabel("Magnitude (dB)")
     ax.set_xlim(100, 20000)
-    # ax.set_ylim(-40, 40)
+    ax.set_ylim(-60, 60)
     ax.set_xlabel("Frequency (Hz)", fontsize=12, fontweight='bold')
     ax.set_ylabel("Magnitude (dB)", fontsize=12, fontweight='bold')
 

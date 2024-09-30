@@ -14,12 +14,8 @@ from process_file_from_params import normalize_param_dict
 
 def find_params(data):
     global channel
-    print(data[input_audio])
-    print(data[text])
-    # print(data[criterion])
-    # print(data[fx_chain])
-    # channel = tc.create_channel(data[fx_chain])
-    # breakpoint()
+    # print(data[input_audio])
+    # print(data[text])
     output_sig, out_params, out_params_dict = text2fx(
         model_name = 'ms_clap',
         sig = at.AudioSignal(data[input_audio], duration=3), 
@@ -29,7 +25,6 @@ def find_params(data):
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
         n_iters= 600,
-        # save_dir='/tmp/gradio/f6bc142ba5459e2e8db732b3665face1592bdaa2/'
     )
     assert output_sig.path_to_file is not None
 
@@ -37,13 +32,13 @@ def find_params(data):
 
     # return in_path_to_file, output_sig.path_to_file, tc.detensor_dict(out_params_dict)
     detensor_params = tc.detensor_dict(out_params_dict)
-    print(detensor_params)
+    # print(detensor_params)
     params_out = []
     for m in detensor_params:
-        print(m)
+        # print(m)
         param_dict = detensor_params[m]
         for k, value in param_dict.items():
-            print(k, value[0])
+            # print(k, value[0])
             params_out.append(value[0])
 
     # list_of_params = list(detensor_params.values())
@@ -56,41 +51,47 @@ def find_params(data):
 
 def apply_params(kwargs):
     global channel
-    print('KWARGS')
-    print(kwargs)
+    print('==========KWARGS')
+    # print(kwargs)
 
     new_params = {}    
     input_audio_path = kwargs.pop(input_audio)
     # print(input_audio_path)
 
-    print(kwargs)
+    # print(kwargs)
     for k, v in kwargs.items():
         new_params[k.label] = v
         # print(new_params)
 
     new_params = {'ParametricEQ': new_params}
+    print(new_params)
     params_dict = normalize_param_dict(new_params, channel)
 
-    print(params_dict)
-    # params_dict = normalize_param_dict(_params_dict, fx_channel) #normalizing 
+    # print(params_dict)
+
     in_sig = at.AudioSignal(input_audio_path).resample(44_100).to_mono().ensure_max_of_audio()
+    
     # depending on exact json dict output, this will change
     params_list = torch.tensor([value for effect_params in params_dict.values() for value in effect_params.values()])
     # if in_sig.batch_size != 1:
     #     params_list = params_list.transpose(0, 1)
+    
     params = params_list.expand(in_sig.batch_size, -1) #shape = (n_batch, n_params)
 
-    print(params)
+    # print(params)
     out_sig = channel(in_sig.clone(), params)
     out_sig = out_sig.ensure_max_of_audio()
 
     assert out_sig.path_to_file is not None
 
+
     out_sig.write(out_sig.path_to_file)
 
     #TODO: add plot_response image
+    print(in_sig.samples)
+    print(out_sig.samples)
     out_plot_path = Path(out_sig.path_to_file).with_suffix('.png')
-    out_plot = tcplot.plot_response(in_sig, out_sig, tag='out', save_path=out_plot_path)
+    out_plot = tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='out', save_path=out_plot_path)
 
     return out_sig.path_to_file, out_plot_path #out_path
 
@@ -109,19 +110,18 @@ with gr.Blocks() as demo:
     text = gr.Textbox(lines=5, label="I want this sound to be ...")
     process_button = gr.Button("Find EQ parameters!")
 
-    # with gr.Row():
-    #     params_ui = {}
-    #     for m in channel.modules:
-    #         for k, range in m.param_ranges.items():
-    #             params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
-
+    # params_ui = {}
+    # for m in channel.modules:
+    #     for k, range in m.param_ranges.items():
+    #         params_ui[k] = gr.Slider(label = k, minimum = range[0], maximum = range[1], value = (range[0]+range[1])/2)
 
     params_ui = {}
     slider_count = 0  # Track the number of sliders added
     for m in channel.modules:
         with gr.Row():
             for k, range in m.param_ranges.items():
-
+                # print(m.param_ranges)
+                # print(k, range)
                 params_ui[k] = gr.Slider(
                     label=k,
                     minimum=range[0],
@@ -134,37 +134,14 @@ with gr.Blocks() as demo:
                 if slider_count % 3 == 0:
                     gr.Row()  # Close the current row and create a new one
 
-
-    #----- failed horzontal grouping
-    # params_ui = {}
-    # slider_group = []  # To collect up to 3 sliders
-    # all_slider_rows = []  # To collect rows of sliders
-
-    # for m in channel.modules:
-    #     for i, (k, range) in enumerate(m.param_ranges.items()):
-    #         slider = gr.Slider(label=k, minimum=range[0], maximum=range[1], value=(range[0] + range[1]) / 2)
-    #         params_ui[k] = slider
-    #         slider_group.append(slider)
-
-    #         # If we have collected 3 sliders, group them into a horizontal row
-    #         if len(slider_group) == 3:
-    #             all_slider_rows.append(gr.Column(slider_group))  # Create a horizontal row of 3 sliders
-    #             slider_group = []  # Clear the group for the next set of sliders
-
-    #     # If there are remaining sliders (less than 3), add them in a final row
-    #     if slider_group:
-    #         all_slider_rows.append(gr.Column(slider_group))  # Add remaining sliders in a row
-    #         slider_group = []  # Clear the group after appending
-
-
     # (temporary) Output Audiosignal: apply EQ to params
-    # output_audio_to_check = gr.Audio(label="output to check", type="filepath")
+    output_audio_to_check = gr.Audio(label="output to check", type="filepath")
 
     # ==== Actual process function to find params
     process_button.click(
         find_params, 
         inputs={input_audio, text},#, fx_chain}, 
-        outputs = set(params_ui.values())# | {output_audio_to_check}
+        outputs = set(params_ui.values()) | {output_audio_to_check}
     )
 
     # ------ Apply Text2FX-parameters to original file ------
@@ -181,9 +158,7 @@ with gr.Blocks() as demo:
     apply_button.click(
         apply_params, 
         inputs={input_audio} | set(params_ui.values()),
-        outputs={output_audio, output_plot} #TODO: add image here?
+        outputs={output_audio, output_plot} #not updating
     )
-
-
 demo.launch(server_port=7863)
 
