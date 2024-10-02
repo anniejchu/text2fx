@@ -119,13 +119,14 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column():
             input_audio = gr.Audio(label="a sound", type="filepath")
+        with gr.Column():
             text = gr.Textbox(lines=3, label="I want this sound to be ...")
         # with gr.Column():
-            process_button = gr.Button("Text2EQ It - Find EQ params!")
+        process_button = gr.Button("Text2EQ It - Find EQ params!")
 
-        with gr.Column():
-            output_audio_to_check = gr.Audio(label="Preview: Audio", type="filepath")
-            output_params = gr.JSON(label='Preview: Params') #these are the output parameters
+        # with gr.Column():
+        #     output_audio_to_check = gr.Audio(label="Preview: Audio", type="filepath")
+        #     output_params = gr.JSON(label='Preview: Params') #these are the output parameters
 
         # with gr.Column():
     # process_button = gr.Button("Text2FX - Find & Apply EQ params!")
@@ -165,8 +166,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         find_params, 
         inputs={input_audio, text},
         # outputs = set(params_ui.values()) | {output_audio_to_check, output_params} 
-        outputs = {output_audio_to_check, output_params} | set(params_ui.values()) 
-
+        outputs =  set(params_ui.values()) 
+        #outputs = {output_audio_to_check, output_params} | set(params_ui.values()) 
     )
 
     # ------ Apply Text2FX-parameters to original file ------
