@@ -37,7 +37,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 50,
+        n_iters= 600,
     )
     assert output_sig.path_to_file is not None
 
@@ -109,21 +109,26 @@ def apply_params(kwargs):
 channel = tc.create_channel(['eq'])
                             
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("## 💥 💥 💥 Text2FX-EQ Interface 💥 💥 💥")
-    input_audio = gr.Audio(label="a sound", type="filepath")
+    gr.Markdown("## 💥 💥 💥 Text2EQ Interface 💥 💥 💥")
 
     # ------ Run Text2FX to find optimal parameters ------
     # ==== setting up UI
     # -- no grouping
 
-    gr.Markdown("### Text2FX This")
+    # gr.Markdown("### Text2FX This")
     with gr.Row():
         with gr.Column():
-            text = gr.Textbox(lines=5, label="I want this sound to be ...")
-            process_button = gr.Button("Text2FX - Find & Apply EQ params!")
+            input_audio = gr.Audio(label="a sound", type="filepath")
+            text = gr.Textbox(lines=3, label="I want this sound to be ...")
+        # with gr.Column():
+            process_button = gr.Button("Text2EQ It - Find EQ params!")
+
         with gr.Column():
-            output_audio_to_check = gr.Audio(label="Text2FX Params Preview", type="filepath")
-            output_params = gr.JSON(label='Text2FX Params Preview') #these are the output parameters
+            output_audio_to_check = gr.Audio(label="Preview: Audio", type="filepath")
+            output_params = gr.JSON(label='Preview: Params') #these are the output parameters
+
+        # with gr.Column():
+    # process_button = gr.Button("Text2FX - Find & Apply EQ params!")
 
     #setting the sliders
     # (temporary) Output Audiosignal: apply EQ to params
@@ -180,5 +185,5 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         inputs={input_audio} | set(params_ui.values()),
         outputs={output_audio, output_plot}
     )
-demo.launch(server_port=7863)
+demo.launch(server_port=7864)
 
