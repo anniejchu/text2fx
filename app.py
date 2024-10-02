@@ -63,7 +63,8 @@ def find_params(data):
 
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     output_sig.write(export_path)
-    return export_path, test_dict, *params_out
+    return tuple(params_out)
+    # return export_path, test_dict, *params_out
 
 def apply_params(kwargs):
     shutil.rmtree(ARTIFACTS_DIR)
@@ -122,7 +123,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         with gr.Column():
             text = gr.Textbox(lines=3, label="I want this sound to be ...")
         # with gr.Column():
-        process_button = gr.Button("Text2EQ It - Find EQ params!")
+    process_button = gr.Button("Text2EQ It - Find EQ params!")
 
         # with gr.Column():
         #     output_audio_to_check = gr.Audio(label="Preview: Audio", type="filepath")
@@ -165,7 +166,6 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     process_button.click(
         find_params, 
         inputs={input_audio, text},
-        # outputs = set(params_ui.values()) | {output_audio_to_check, output_params} 
         outputs =  set(params_ui.values()) 
         #outputs = {output_audio_to_check, output_params} | set(params_ui.values()) 
     )
