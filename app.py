@@ -105,12 +105,12 @@ def apply_params(kwargs):
     plot_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.png'
     tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
 
-    return export_path, plot_path
+    return export_path, input_audio_path, plot_path
 
 channel = tc.create_channel(['eq'])
                             
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("## 💥 💥 💥 Text2EQ Interface 💥 💥 💥")
+    gr.Markdown("## 💥 💥 💥 Text2EQ 💥 💥 💥")
 
     # ------ Run Text2FX to find optimal parameters ------
     # ==== setting up UI
@@ -176,7 +176,9 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     apply_button = gr.Button("Apply EQ parameters!")
 
     with gr.Row():
-        output_audio = gr.Audio(label="output sound", type="filepath")
+        with gr.Column():
+            output_audio = gr.Audio(label="output sound", type="filepath")
+            input_a = gr.Audio(label='original', type="filepath")
         output_plot = gr.Image(label = "frequency response", type = "filepath")
         # output_params = gr.JSON(label='output params') #these are the output parameters
 
@@ -184,7 +186,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     apply_button.click(
         apply_params, 
         inputs={input_audio} | set(params_ui.values()),
-        outputs={output_audio, output_plot}
+        outputs={output_audio, input_a, output_plot}
     )
-demo.launch(server_port=7864)
+demo.launch(server_port=7865, share=True)
 
