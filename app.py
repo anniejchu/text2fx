@@ -19,6 +19,12 @@ def generate_random_string():
     random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(5, 15)))
     return f'"{random_str}"'
 
+
+def generate_random_nums():
+    random_str = ''.join(random.choices(string.digits, k=random.randint(5, 15)))
+    return f'"{random_str}"'
+
+
 ARTIFACTS_DIR = Path('/home/annie/research/text2fx/runs/app_artifacts')
 shutil.rmtree(ARTIFACTS_DIR)
 ARTIFACTS_DIR.mkdir()
@@ -192,6 +198,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # ==== Setting up UI
     # Output Audio File: apply EQ to params
     apply_button = gr.Button("Apply EQ parameters!")
+    # apply_feedback_text = gr.Markdown("")
 
     with gr.Row():
         with gr.Column():
@@ -214,10 +221,9 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # ### Testing Feedback
     # Feedback button to feed output_audio back into input_audio
 
-    rand_str = generate_random_string()
     # When feedback_button is clicked, set output_audio as the new input_audio
     feedback_button.click(
-        lambda audio: (audio, "done! // " + rand_str),  # return the output_audio as input
+        lambda audio: (audio, "done! // " + generate_random_string()),  # return the output_audio as input
         inputs=output_audio,
         outputs=[input_audio, feedback_text]
     )
