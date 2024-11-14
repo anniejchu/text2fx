@@ -49,7 +49,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 100,
+        n_iters= 600,
     )
     assert output_sig.path_to_file is not None
 
@@ -143,6 +143,8 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     with gr.Row():
         with gr.Column():
             input_audio = gr.Audio(label="a sound", type="filepath")
+            feedback_text = gr.Markdown("")
+
         with gr.Column():
             text = gr.Textbox(lines=3, label="I want this sound to be ...")
         # with gr.Column():
@@ -204,7 +206,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         with gr.Column():
             output_audio = gr.Audio(label="output sound", type="filepath", interactive=False)
             feedback_button = gr.Button("Use Output as New Input")
-            feedback_text = gr.Markdown("")
+            # feedback_text = gr.Markdown("")
             input_a = gr.Audio(label='original', type="filepath", interactive=False)
         output_plot = gr.Image(label = "frequency response", type = "filepath")
         # output_params = gr.JSON(label='output params') #these are the output parameters
@@ -223,7 +225,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 
     # When feedback_button is clicked, set output_audio as the new input_audio
     feedback_button.click(
-        lambda audio: (audio, "done! // " + generate_random_string()),  # return the output_audio as input
+        lambda audio: (audio, "loaded output as input! // " + generate_random_string()),  # return the output_audio as input
         inputs=output_audio,
         outputs=[input_audio, feedback_text]
     )
