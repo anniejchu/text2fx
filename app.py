@@ -12,18 +12,12 @@ import os
 from process_file_from_params import normalize_param_dict
 import uuid
 import shutil
-
 import random
 import string
 
-def random_string(length=10):
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
-
-# def random_string(min_length=5, max_length=15):
-#     length = random.randint(min_length, max_length)  # Random length within the specified range
-#     characters = string.ascii_letters + string.digits
-#     return str(''.join(random.choice(characters) for _ in range(length)))
+def generate_random_string():
+    random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(5, 15)))
+    return f'"{random_str}"'
 
 ARTIFACTS_DIR = Path('/home/annie/research/text2fx/runs/app_artifacts')
 shutil.rmtree(ARTIFACTS_DIR)
@@ -220,13 +214,13 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     # ### Testing Feedback
     # Feedback button to feed output_audio back into input_audio
 
-    
+    rand_str = generate_random_string()
     # When feedback_button is clicked, set output_audio as the new input_audio
     feedback_button.click(
-        lambda audio: (audio, "done"),  # return the output_audio as input
+        lambda audio: (audio, "done! // " + rand_str),  # return the output_audio as input
         inputs=output_audio,
         outputs=[input_audio, feedback_text]
     )
 
-demo.launch(server_port=7865, share=False)
+demo.launch(server_port=7865, share=True)
 
