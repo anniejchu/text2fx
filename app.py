@@ -13,6 +13,18 @@ from process_file_from_params import normalize_param_dict
 import uuid
 import shutil
 
+import random
+import string
+
+def random_string(length=10):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+# def random_string(min_length=5, max_length=15):
+#     length = random.randint(min_length, max_length)  # Random length within the specified range
+#     characters = string.ascii_letters + string.digits
+#     return str(''.join(random.choice(characters) for _ in range(length)))
+
 ARTIFACTS_DIR = Path('/home/annie/research/text2fx/runs/app_artifacts')
 shutil.rmtree(ARTIFACTS_DIR)
 ARTIFACTS_DIR.mkdir()
@@ -37,7 +49,7 @@ def find_params(data):
         channel=channel,
         criterion='cosine-sim',#data[criterion],
         params_init_type= 'random',
-        n_iters= 600,
+        n_iters= 100,
     )
     assert output_sig.path_to_file is not None
 
@@ -79,7 +91,10 @@ def apply_params(kwargs):
 
     # print(kwargs)
     for k, v in kwargs.items():
-        new_params[k.label] = v
+        if k.label == "original":
+            continue
+        else:
+            new_params[k.label] = v
         # print(new_params)
 
     new_params = {'ParametricEQ': new_params}
@@ -88,6 +103,10 @@ def apply_params(kwargs):
 
     in_sig = at.AudioSignal(input_audio_path).resample(44_100).to_mono().ensure_max_of_audio()
     
+    if kwargs[input_a] is not None:
+        orig_sig = at.AudioSignal(kwargs[input_a])
+    else:
+        orig_sig = in_sig
     # depending on exact json dict output, this will change
     params_list = torch.tensor([value for effect_params in params_dict.values() for value in effect_params.values()])
     # if in_sig.batch_size != 1:
@@ -102,27 +121,33 @@ def apply_params(kwargs):
     export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
     out_sig.write(export_path)
 
-    plot_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.png'
-    tcplot.plot_response(in_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
+    orig_export_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.wav'
+    orig_sig.write(orig_export_path)
 
-    return export_path, input_audio_path, plot_path
+    plot_path = ARTIFACTS_DIR/f'{uuid.uuid4()}.png'
+    tcplot.plot_response(orig_sig.clone(), out_sig.clone(), tag='Freq Response', save_path=plot_path)
+
+    return export_path, orig_export_path, plot_path
 
 channel = tc.create_channel(['eq'])
-                            
+
+sample_dict = {
+    "speech": Path("/home/annie/research/text2fx/assets/text2eq/speech.wav"),
+    "guitar": Path("/home/annie/research/text2fx/assets/text2eq/guitar.wav")
+}
+                 
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
     gr.Markdown("## 💥 💥 💥 Text2EQ 💥 💥 💥")
 
-    # ------ Run Text2FX to find optimal parameters ------
-    # ==== setting up UI
-    # -- no grouping
-
-    # gr.Markdown("### Text2FX This")
+    ## Initial UI for input audio and description text
     with gr.Row():
         with gr.Column():
             input_audio = gr.Audio(label="a sound", type="filepath")
         with gr.Column():
             text = gr.Textbox(lines=3, label="I want this sound to be ...")
         # with gr.Column():
+    
+    ## Button to process the audio and find EQ params
     process_button = gr.Button("Text2EQ It - Find EQ params!")
 
         # with gr.Column():
@@ -160,13 +185,12 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
                         info = f'Range: {range[0]}, {range[1]}',
                         scale=scale
                     )
-  
 
     # ==== Actual process function to find params
     process_button.click(
         find_params, 
         inputs={input_audio, text},
-        outputs =  set(params_ui.values()) 
+        outputs = set(params_ui.values()) 
         #outputs = {output_audio_to_check, output_params} | set(params_ui.values()) 
     )
 
@@ -177,16 +201,32 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 
     with gr.Row():
         with gr.Column():
-            output_audio = gr.Audio(label="output sound", type="filepath")
-            input_a = gr.Audio(label='original', type="filepath")
+            output_audio = gr.Audio(label="output sound", type="filepath", interactive=False)
+            feedback_button = gr.Button("Use Output as New Input")
+            feedback_text = gr.Markdown("")
+            input_a = gr.Audio(label='original', type="filepath", interactive=False)
         output_plot = gr.Image(label = "frequency response", type = "filepath")
         # output_params = gr.JSON(label='output params') #these are the output parameters
+
 
     # ==== Actual process function to apply params
     apply_button.click(
         apply_params, 
-        inputs={input_audio} | set(params_ui.values()),
+        inputs={input_audio} | set(params_ui.values()) | {input_a},
         outputs={output_audio, input_a, output_plot}
     )
-demo.launch(server_port=7865, share=True)
+
+
+    # ### Testing Feedback
+    # Feedback button to feed output_audio back into input_audio
+
+    
+    # When feedback_button is clicked, set output_audio as the new input_audio
+    feedback_button.click(
+        lambda audio: (audio, "done"),  # return the output_audio as input
+        inputs=output_audio,
+        outputs=[input_audio, feedback_text]
+    )
+
+demo.launch(server_port=7865, share=False)
 
