@@ -17,20 +17,8 @@ The script saves:
 - Optionally, an optimized audio file (saved to export_audio_path).
 
 Example Call:
-OLD
-python process_file.py assets/multistem_examples/10s/piano.wav eq warm \
-    --export_param_dict_path experiments/2024-08-19/SINGLE_TEST/out.json \
-    --export_audio_path experiments/2024-08-19/SINGLE_TEST/out.wav \
-    --learning_rate 0.01 \
-    --params_init_type random \
-    --roll_amt 10000 \
-    --n_iters 600 \
-    --criterion cosine-sim \
-    --model ms_clap
-
-NEW:
-python process_file.py assets/multistem_examples/10s/piano.wav eq tinny \
-    --export_dir experiments/2025-01-28/ \
+python process_file.py assets/multistem_examples/10s/bass.wav eq tinny \
+    --export_dir experiments/2025-01-28/bass \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -73,7 +61,8 @@ def main(audio_path: Union[str, Path, AudioSignal],
         n_iters=n_iters,
         roll_amt=roll_amt,
     )
-    # Optionally export optimized parameters as JSON
+
+    # Export JSON parameters & output audio
     if export_dir:
         export_dir = Path(export_dir)
         print(f'saving to {export_dir}')
@@ -88,14 +77,6 @@ def main(audio_path: Union[str, Path, AudioSignal],
         audio_path_in = export_dir / 'input.wav'
         print(f'saving initial audio .wav to {audio_path_in}')
         tc.export_sig(in_sig, audio_path_in)
-    # if export_param_dict_path:
-    #     print(f'saving final param json to {export_param_dict_path}')
-    #     tc.save_dict_to_json(out_params_dict, export_param_dict_path)
-
-    # # Optionally export optimized audio
-    # if export_audio_path:
-    #     print(f'saving final audio .wav to {export_audio_path}')
-    #     tc.export_sig(signal_effected, export_audio_path)
  
     return out_params_dict
 
@@ -123,9 +104,6 @@ if __name__ == "__main__":
     parser.add_argument("fx_chain", nargs="+", help="List of FX to apply.")
     parser.add_argument("text_target", type=str, default='warm', help="Text description to match.")
     parser.add_argument("--export_dir", type=str, default=None, help="Dir Path to save optimized audio file.")
-
-    # parser.add_argument("--export_param_dict_path", type=str, default=None, help="Path to save optimized effect controls as JSON.")
-    # parser.add_argument("--export_audio_path", type=str, default=None, help="Path to save optimized audio file.")
     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate for optimization.")
     parser.add_argument("--params_init_type", type=str, default='random', choices=['random', 'default'], help="Parameter initialization type.")
     parser.add_argument("--roll_amt", type=int, default=None, help="Amount to roll.")
@@ -135,10 +113,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # main(args.audio_path, args.fx_chain, args.text_target,
-    #      args.export_param_dict_path, args.export_audio_path,
-    #      args.learning_rate, args.params_init_type, args.roll_amt,
-    #      args.n_iters, args.criterion, args.model)
     main(args.audio_path, 
          args.fx_chain, 
          args.text_target,
@@ -149,13 +123,3 @@ if __name__ == "__main__":
          args.n_iters, 
          args.criterion, 
          args.model)
-
- # python process_file.py <audio_path> <fx_chain> <text_target> [--export_param_dict_path EXPORT_PARAM_DICT_PATH]
-#                      [--export_audio_path EXPORT_AUDIO_PATH]
-#                      [--learning_rate LEARNING_RATE]
-#                      [--params_init_type {random,default}]
-#                      [--roll_amt ROLL_AMT] [--n_iters N_ITERS]
-#                      [--criterion CRITERION] [--model MODEL]
-
-
-# python process_file.py assets/audio.wav EQ reverb --export_param_dict_path /path/to/save/params.json --export_audio_path /path/to/save/audio.wav --learning_rate 0.001 --params_init_type random --roll_amt 10000 --n_iters 50 --criterion cosine-sim --model ms_clap
