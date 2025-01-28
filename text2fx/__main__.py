@@ -112,22 +112,15 @@ def text2fx(
             torch.zeros(sig.batch_size, channel.num_params).to(device) 
         )
     elif params_init_type=='random':
-        # params_single = torch.randn(1, channel.num_params).to(device) 
-        params_single = torch.normal(mean=0, std=0.5, size=(1, channel.num_params)).to(device)
-
         params = torch.nn.parameter.Parameter(
-            #params_single.repeat(sig.batch_size, 1).to(device)
             torch.randn(sig.batch_size, channel.num_params).to(device) 
-            # torch.normal(mean=0, std=0.5, size=(sig.batch_size, channel.num_params)).to(device)
         )
-    elif params_init_type=='super_random':
-        params_single = torch.randn(1, channel.num_params).to(device) * 4
 
+    elif params_init_type=='super_random':
         params = torch.nn.parameter.Parameter(
             (torch.randn(sig.batch_size, channel.num_params).to(device) * 8) 
         )
-        print('sueprandom')
-
+        
     else:
         raise ValueError
     

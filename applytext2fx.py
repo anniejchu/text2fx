@@ -27,10 +27,17 @@ python applytext2fx.py assets/multistem_examples/10s/bass.wav eq tinny \
     --model ms_clap
 
 
-python applytext2fx.py assets/multistem_examples/10s/guitar.wav eq reverb compression warm \
-    --export_dir experiments/2025-01-28/guitar_multifx \
+case 1 (sparse): single audio file, single text_target
+python applytext2fx.py assets/multistem_examples/10s/guitar.wav eq reverb compression 'cold and dark' \
+    --export_dir experiments/2025-01-28/guitar_multifx_2 \
     --params_init_type random \
     --n_iters 200 
+
+case 2: multiple audio files, single text_target
+
+
+case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
+ 
 """
 
 
@@ -54,7 +61,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
     print(f'2. created channel from {fx_chain} ... {fx_channel.modules}')
 
     # Apply text-to-FX processing
-    print(f'3. applying text2fx ...')
+    print(f'3. applying text2fx ..., target {text_target}')
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig=in_sig, 
@@ -85,21 +92,6 @@ def main(audio_path: Union[str, Path, AudioSignal],
         tc.export_sig(in_sig, audio_path_in)
  
     return out_params_dict
-
-# if __name__ == "__main__":
-#     main(
-#         audio_path='assets/multistem_examples/10s/guitar.wav',
-#         fx_chain=['EQ', 'reverb'],
-#         text_target='warm',
-#         export_param_dict_path='/home/annie/research/text2fx/experiments/2024-07-08/process_file_test/output.json',
-#         export_audio_path='/home/annie/research/text2fx/experiments/2024-07-08/process_file_test/final_audio.wav',
-#         learning_rate=1e-2,
-#         n_iters=600,
-#         params_init_type='random',
-#         roll_amt=10000,
-#         criterion='cosine-sim',
-#         model='ms_clap'
-#     )
 
 
 if __name__ == "__main__":
