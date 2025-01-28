@@ -13,8 +13,8 @@ from text2fx.constants import SAMPLE_RATE, DEVICE
 Script to process a single audio file with a given FX chain to match a description.
 Optional arguments include learning rate, number of steps, loss type, parameter initialization, and augmentation params.
 The script saves:
-- A dictionary of optimized effect controls as JSON (specified by export_param_dict_path).
-- Optionally, an optimized audio file (saved to export_audio_path).
+- A dictionary of optimized effect controls as JSON (specified by export_dir).
+- Exported optimized audio file (saved to export_dir).
 
 Example Call:
 python process_file.py assets/multistem_examples/10s/bass.wav eq tinny \
@@ -24,6 +24,14 @@ python process_file.py assets/multistem_examples/10s/bass.wav eq tinny \
     --roll_amt 10000 \
     --n_iters 100 \
     --criterion cosine-sim \
+    --model ms_clap
+
+
+python process_file.py assets/multistem_examples/10s/guitar.wav eq warm \
+    --export_dir experiments/2025-01-28/guitar \
+    --learning_rate 0.01 \
+    --params_init_type random \
+    --n_iters 200 \
     --model ms_clap
 """
 
