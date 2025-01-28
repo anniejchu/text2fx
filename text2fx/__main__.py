@@ -93,7 +93,7 @@ def text2fx(
     # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
-            save_dir = create_save_dir(f'{text}_b2_lr_{lr}_{criterion}', RUNS_DIR)
+            save_dir = create_save_dir(f'{text}_{lr}_{criterion}', RUNS_DIR)
         else:
             save_dir = Path(save_dir)
             save_dir.mkdir(exist_ok=True, parents=True)

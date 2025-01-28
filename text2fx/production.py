@@ -28,7 +28,10 @@ import matplotlib.pyplot as plt
 
 
 """
+SAVES IT EVERY 100 ITERATIONS
+TO CHECK
 EX CLI USAGE
+
 python -m text2fx --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"\
                  --text "this sound is happy" \
                  --criterion "cosine-sim" \
