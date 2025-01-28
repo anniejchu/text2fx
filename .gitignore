@@ -3,6 +3,8 @@ data/*
 pretrained/*
 experiments/*
 runs/*
+notebooks/*
+assets/*
 
 **/..git/*
 __pycache__/
@@ -19,4 +21,7 @@ __pycache__/
 **/extra/
 assets/*
 
+word_*
 test_*
+scrapapp*
+b4*

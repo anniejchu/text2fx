@@ -6,15 +6,25 @@ import numpy as np
 import audiotools as at
 import dasp_pytorch
 from audiotools import AudioSignal
-
+import json
 from typing import Union, List
+
 
 from torch.utils.tensorboard import SummaryWriter
 
-# from msclap import CLAP
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio, download_file
+from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE, PRETRAINED_DIR
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio
-from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
+
+import torchaudio.transforms as T
+import numpy as np
+import dasp_pytorch
+from audiotools import AudioSignal
+from typing import Iterable
+import random
+
+# from msclap import CLAP
+import matplotlib.pyplot as plt
 
 
 """
@@ -29,6 +39,10 @@ python -m text2fx --input_audio "assets/speech_examples/VCTK_p225_001_mic1.flac"
 """
 device = DEVICE #torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
 
+def detensor_dict(input_dict: dict) -> dict:
+    output_dict = {key: value.tolist() if isinstance(value, torch.Tensor) else
+        {k: v.tolist() if isinstance(v, torch.Tensor) else v for k, v in value.items()} if isinstance(value, dict) else value for key, value in input_dict.items()}
+    return output_dict
 
 def get_model(model_choice: str):
     if model_choice=="laion_clap":
@@ -60,14 +74,10 @@ def clip_directional_loss(
 def get_default_channel():
     return Channel(
         dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
-        # dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
-        
-        # Distortion(sample_rate=SAMPLE_RATE),
     )
 
-def text2fx(
+#saves every 100
+def text2fx_real(
     model_name: str,
     sig: AudioSignal, 
     text: Union[str, List[str]],   
@@ -75,29 +85,24 @@ def text2fx(
     device: str = "cuda" if torch.cuda.is_available() else "cpu", 
     log_audio_every_n: int = 25, 
     lr: float = 1e-2, 
-    n_iters: int = 600,
+    n_iters: int = 650,
     criterion: str = "standard", 
     save_dir: str = None, # figure out a save path automatically,
-    params_init_type: str = "zeros",
+    params_init_type: str = "random",
     # seed_i: int = 0,
     roll_amt: int = None,
     export_audio: bool = False,
     log_tensorboard: bool = False,
 ):
-    # ah yes, the max morrison trick of hiding global variables as function members
-    # prevents loading the model everytime w/o needing to set it first as global variable
-    # if model=='ms_clap':
-    # at.util.seed(seed_i) # for doing fixing random parameters
-
     clap = get_model(model_name)
-    # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
-            save_dir = create_save_dir(f'{text}_b2_lr_{lr}_{criterion}', RUNS_DIR)
+            save_dir = create_save_dir(f'{text}_paper', RUNS_DIR)
         else:
             save_dir = Path(save_dir)
             save_dir.mkdir(exist_ok=True, parents=True)
-
+    print(save_dir)
+    breakpoint()
     # create a writer for saving stuff to tensorboard
     if log_tensorboard:
         writer_dir = save_dir / "logs"
@@ -106,23 +111,15 @@ def text2fx(
     else:
         writer = False
     # params!
-    # NOTE: these aren't actually initialized to "zeros" since the we'll apply a sigmoid which will shift this up right? 
     if params_init_type=='zeros':
         params = torch.nn.parameter.Parameter(
             torch.zeros(sig.batch_size, channel.num_params).to(device) 
         )
     elif params_init_type=='random':
-        # params_single = torch.randn(1, channel.num_params).to(device) 
-        params_single = torch.normal(mean=0, std=0.5, size=(1, channel.num_params)).to(device)
-
         params = torch.nn.parameter.Parameter(
-            #params_single.repeat(sig.batch_size, 1).to(device)
             torch.randn(sig.batch_size, channel.num_params).to(device) 
-            # torch.normal(mean=0, std=0.5, size=(sig.batch_size, channel.num_params)).to(device)
         )
     elif params_init_type=='super_random':
-        params_single = torch.randn(1, channel.num_params).to(device) * 4
-
         params = torch.nn.parameter.Parameter(
             (torch.randn(sig.batch_size, channel.num_params).to(device) * 8) 
         )
@@ -147,14 +144,15 @@ def text2fx(
             log.write(f"Custom roll?: {roll_amt}\n")
             log.write("="*40 + "\n")
 
+    # in_params = params.data.cpu()
+    # in_params_dict = channel.save_params_to_dict(in_params)
+
     params.requires_grad=True
-    # the optimizer!
     optimizer = torch.optim.Adam([params], lr=lr)
 
     #preprocessing initial sample
     sig = preprocess_audio(sig).to(device)
     # log what our initial effect sounds like (w/ random parameters applied)
-
 
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
     if writer:
@@ -195,6 +193,8 @@ def text2fx(
         text_anchor_emb = clap.get_text_embeddings(text_neg_processed).detach()
 
     final_losses = []
+    json_log_path = save_dir / "params_log.json"  # Path to save the JSON file
+
     # Optimize our parameters by matching effected audio against the target audio
     pbar = tqdm(range(n_iters), total=n_iters)
     for n in pbar:
@@ -217,6 +217,7 @@ def text2fx(
             sig_roll.samples[i:i+1] = rolled
 
         signal_effected = channel(sig_roll.to(device), torch.sigmoid(params.to(device)))
+        signal_effected_original = channel(sig.clone().to(device), torch.sigmoid(params.to(device)))
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
@@ -255,7 +256,20 @@ def text2fx(
                 signal_effected.detach().cpu().ensure_max_of_audio().write_audio_to_tb("effected", writer, n)
                 if writer:
                     writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
-        
+        if n % 100 == 0:
+            params_i = params.detach().cpu()
+            out_params_dict = channel.save_params_to_dict(params.detach().cpu())
+            print(out_params_dict)
+            with open(json_log_path, "a") as json_log_file:
+                json.dump({"iteration": n, "params": detensor_dict(out_params_dict)}, json_log_file)
+                json_log_file.write("\n")  # For better readability in the file
+                json.dump({"iteration": n, "raw_params": params_i.tolist()}, json_log_file)
+                json_log_file.write("\n")  # For better readability in the file
+
+            
+            signal_effected_original.detach().cpu().normalize(-24).write(save_dir / f'{init_sig_path.stem}_{n}.wav')
+            # out_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_final.wav')
+
     if log_tensorboard or export_audio:
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
@@ -264,11 +278,13 @@ def text2fx(
     # breakpoint()
     # Play final signal with optimized effects parameters
     out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig = preprocess_audio(out_sig)
+    # out_sig = preprocess_audio(out_sig)
     
-    out_params = params.detach().cpu()
-    out_params_dict = channel.save_params_to_dict(out_params)
-
+    final_params = params.detach().cpu()
+    final_params_dict = channel.save_params_to_dict(final_params)
+    with open(json_log_path, "a") as json_log_file:
+        json.dump({"iteration": 'end', "params": detensor_dict(final_params_dict)}, json_log_file)
+        json_log_file.write("\n")  # For better readability in the file
     if export_audio:
         if sig.batch_size == 1:
             out_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_final.wav')
@@ -284,42 +300,80 @@ def text2fx(
         writer.close()
     
     init_sig_out = init_sig.detach().cpu()
-    init_sig_out = preprocess_audio(init_sig_out)
+    # init_sig_out = preprocess_audio(init_sig_out)
 
-    return out_sig, out_params, out_params_dict, #final_losses, min_loss_index, init_sig_out#params.detach().cpu()
+    return out_sig, final_params, final_params_dict#, final_losses, min_loss_index, init_sig_out#params.detach().cpu()
+    # return out_sig, final_params, final_params_dict, final_losses, min_loss_index, init_sig_out#params.detach().cpu()
 
+def test():
+    sig = AudioSignal("assets/speech_examples/VCTK_p225_001_mic1.flac").resample(44_100).to_mono().normalize(-24)
+    # sig = AudioSignal("assets/audealize_examples/guitar.wav", duration=3).resample(44_100).to_mono().normalize(-24)
+
+    # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+    channel = Channel(dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE))
+
+    text2fx_real(
+        model_name='ms_clap',
+        sig = sig,
+        text = 'hollow and far-away',
+        channel = channel,
+        n_iters=650,
+        criterion='directional_loss',#'cosine-sim',
+        export_audio=True,
+        log_tensorboard=False,
+        params_init_type='zeros'
+    )
+
+test()
+#     text2fx_paper(
+#     model_name: str,
+#     sig: AudioSignal, 
+#     text: Union[str, List[str]],   
+#     channel: Channel,
+#     device: str = "cuda" if torch.cuda.is_available() else "cpu", 
+#     log_audio_every_n: int = 25, 
+#     lr: float = 1e-2, 
+#     n_iters: int = 650,
+#     criterion: str = "standard", 
+#     save_dir: str = None, # figure out a save path automatically,
+#     params_init_type: str = "random",
+#     # seed_i: int = 0,
+#     roll_amt: int = None,
+#     export_audio: bool = False,
+#     log_tensorboard: bool = False,
+# ):
 
 # if __name__ == "__main__":
-#     import argparse
-#     parser = argparse.ArgumentParser()
+    # import argparse
+    # parser = argparse.ArgumentParser()
 
-#     # parser.add_argument("--input_audio", type=int, default=5, help="index of example audio file")
-#     parser.add_argument("--model_name", type=str, help="choose either 'laion_clap' or 'ms_clap'")
-#     parser.add_argument("--input_audio", type=str, help="path to input audio file")
-#     parser.add_argument("--text", type=str, help="text prompt for the effect")
-#     parser.add_argument("--criterion", type=str, default="cosine-sim", help="criterion to use for optimization")
-#     parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
-#     parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
-#     parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
-#     parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
-#     parser.add_argument("--roll_amt", type=int, default=None, help="range of # of samples for rolling action")
-#     parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
-#     parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
+    # # parser.add_argument("--input_audio", type=int, default=5, help="index of example audio file")
+    # parser.add_argument("--model_name", type=str, help="choose either 'laion_clap' or 'ms_clap'")
+    # parser.add_argument("--input_audio", type=str, help="path to input audio file")
+    # parser.add_argument("--text", type=str, help="text prompt for the effect")
+    # parser.add_argument("--criterion", type=str, default="cosine-sim", help="criterion to use for optimization")
+    # parser.add_argument("--n_iters", type=int, default=600, help="number of iterations to optimize for")
+    # parser.add_argument("--lr", type=float, default=1e-2, help="learning rate for optimization")
+    # parser.add_argument("--save_dir", type=str, default=None, help="path to export audio file")
+    # parser.add_argument("--params_init_type", type=str, default='zeros', help="enter params init type")
+    # parser.add_argument("--roll_amt", type=int, default=None, help="range of # of samples for rolling action")
+    # parser.add_argument("--export_audio", type=bool, default=False, help="export audio?")
+    # parser.add_argument("--log_tensorboard", type=bool, default=False, help="log tensorboard?")
 
 
-#     args = parser.parse_args()
+    # # args = parser.parse_args()
 
-#     # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
+    # channel = Channel(dasp_pytorch.ParametricEQ(sample_rate=SAMPLE_RATE))
 
-#     text2fx(
-#         model_name=args.model_name, 
-#         sig=AudioSignal(args.input_audio), 
-#         text=args.text, 
-#         channel=args.channel,
-#         criterion=args.criterion, 
-#         save_dir=args.save_dir,
-#         params_init_type=args.params_init_type,
-#         roll_amt=args.roll_amt,
-#         export_audio=args.export_audio,
-#         log_tensorboard=args.log_tensorboard
-#     )
+    # text2fx(
+    #     model_name=args.model_name, 
+    #     sig=AudioSignal(args.input_audio), 
+    #     text=args.text, 
+    #     channel=args.channel,
+    #     criterion=args.criterion, 
+    #     save_dir=args.save_dir,
+    #     params_init_type=args.params_init_type,
+    #     roll_amt=args.roll_amt,
+    #     export_audio=args.export_audio,
+    #     log_tensorboard=args.log_tensorboard
+    # )
