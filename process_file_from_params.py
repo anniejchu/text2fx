@@ -21,9 +21,9 @@ Applies effects to an audio file or directory of audio files based on parameters
 :param output_path: Path to save the processed audio file.
 
 Example Call:
-python process_file_from_params.py --audio_dir_or_file /experiments/2025-01-28/bass/input.wav \
---params_dict_path /experiments/2025-01-28/bass/tinny.json \
---export_path /experiments/2025-01-28/bass/reapplied.wav
+python process_file_from_params.py --audio_dir_or_file experiments/2025-01-28/guitar_multifx/input.wav \
+--params_dict_path experiments/2025-01-28/guitar_multifx/warm.json \
+--export_path experiments/2025-01-28/guitar_multifx/reapplied.wav
 """
 
 def normalize_param_dict(param_dict: dict, channel) -> dict:

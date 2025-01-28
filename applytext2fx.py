@@ -17,7 +17,7 @@ The script saves:
 - Exported optimized audio file (saved to export_dir).
 
 Example Call:
-python process_file.py assets/multistem_examples/10s/bass.wav eq tinny \
+python applytext2fx.py assets/multistem_examples/10s/bass.wav eq tinny \
     --export_dir experiments/2025-01-28/bass \
     --learning_rate 0.01 \
     --params_init_type random \
@@ -27,12 +27,10 @@ python process_file.py assets/multistem_examples/10s/bass.wav eq tinny \
     --model ms_clap
 
 
-python process_file.py assets/multistem_examples/10s/guitar.wav eq warm \
-    --export_dir experiments/2025-01-28/guitar \
-    --learning_rate 0.01 \
+python applytext2fx.py assets/multistem_examples/10s/guitar.wav eq reverb compression warm \
+    --export_dir experiments/2025-01-28/guitar_multifx \
     --params_init_type random \
-    --n_iters 200 \
-    --model ms_clap
+    --n_iters 200 
 """
 
 
@@ -49,7 +47,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
     
     # Preprocess audio, return AudioSignal
     in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
-    print(f'1. processed ... {audio_path}')
+    print(f'1. processing input ... {audio_path}')
 
     # Create FX channel
     fx_channel = tc.create_channel(fx_chain)

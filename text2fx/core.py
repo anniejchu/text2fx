@@ -572,6 +572,7 @@ def create_channel(fx_chain, sr=SAMPLE_RATE):
         'reverb': dasp_pytorch.NoiseShapedReverb,
         'noiseshapedreverb': dasp_pytorch.NoiseShapedReverb,
         'compressor': dasp_pytorch.Compressor,
+        'compression': dasp_pytorch.Compressor,
         'eq40': ParametricEQ_40band,
     }
 
