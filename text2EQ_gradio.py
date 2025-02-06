@@ -43,7 +43,8 @@ def find_params(data):
     # print(data[text])
     output_sig, out_params, out_params_dict = text2fx(
         model_name = 'ms_clap',
-        sig = at.AudioSignal(data[input_audio], duration=3), 
+        # sig = at.AudioSignal(data[input_audio], duration=3), 
+        sig = at.AudioSignal.salient_excerpt(data[input_audio], duration=3),
         text=data[text],
         export_audio=True,
         channel=channel,

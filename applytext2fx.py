@@ -51,10 +51,15 @@ def main(audio_path: Union[str, Path, AudioSignal],
          n_iters: int = 600,
          criterion: str = 'cosine-sim',
          model: str = 'ms_clap') -> dict:
-    
-    # Preprocess audio, return AudioSignal
-    in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
-    print(f'1. processing input ... {audio_path}')
+
+    # Preprocess full audio from path, return AudioSignal
+    # in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
+    # print(f'1. processing input ... {audio_path}')
+
+        # OPTIONAL: # Preprocess full audio from path, return AudioSignal
+    sig_short = AudioSignal.salient_excerpt(audio_path, duration=3).to(DEVICE)
+    in_sig = tc.preprocess_audio(sig_short).to(DEVICE)
+    print(f'1. processing SHORT (3s) input ... {audio_path}')
 
     # Create FX channel
     fx_channel = tc.create_channel(fx_chain)
