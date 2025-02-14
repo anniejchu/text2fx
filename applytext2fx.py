@@ -37,7 +37,6 @@ case 2: multiple audio files, single text_target
 
 
 case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
- 
 """
 
 
