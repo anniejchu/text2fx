@@ -372,8 +372,6 @@ def create_save_dir(text, runs_dir):
     save_dir.mkdir(exist_ok=True, parents=True)
     return save_dir
 
-#from notebook / helper.py 
-
 
 def find_paths_with_keyword(file_paths, keywords, returnSingle=False):
     """

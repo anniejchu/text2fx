@@ -53,8 +53,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
          model: str = 'ms_clap') -> dict:
 
     # Preprocess full audio from path, return AudioSignal
-    # in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
-    in_sig = audio_path
+    in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
     print(f'1. processing input ... {audio_path}')
 
     #     # OPTIONAL: # Preprocess full audio from path, return AudioSignal
@@ -70,7 +69,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
     print(f'3. applying text2fx ..., target {text_target}')
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
-        sig_in=in_sig, 
+        sig_in=audio_path, 
         text=text_target, 
         channel=fx_channel,
         criterion=criterion, 
@@ -85,23 +84,28 @@ def main(audio_path: Union[str, Path, AudioSignal],
     if export_dir:
         export_dir = Path(export_dir)
         print(f'saving to {export_dir}')
-        json_path = export_dir / f'{text_target}.json'
+        run_name = f"{tc.slugify(text_target)}"    
+
+        # checking for existing runs
+        existing_runs = [d for d in export_dir.iterdir() if d.is_dir() and d.name.startswith(run_name)]
+        if len(existing_runs) == 0:
+            save_dir = export_dir / f"{run_name}-001"
+        else:
+            latest_run = sorted(existing_runs, key=lambda x: int(x.name.split('-')[-1]))[-1]
+            run_num = int(latest_run.name.split('-')[-1]) + 1
+            save_dir = export_dir / f"{run_name}-{run_num:03d}"
+
+        json_path = save_dir / 'FXparams.json'
         print(f'saving final param json to {json_path}')
         tc.save_dict_to_json(out_params_dict, json_path)
 
-        audio_path = export_dir / f'{text_target}.wav'
+        audio_path = save_dir / 'output.wav'
         print(f'saving final audio .wav to {audio_path}')
         tc.export_sig(signal_effected, audio_path)
 
-        audio_path_in = export_dir / 'input.wav'
+        audio_path_in = save_dir / 'input.wav'
         print(f'saving initial audio .wav to {audio_path_in}')
         tc.export_sig(tc.preprocess_audio(in_sig), audio_path_in)
- 
-        # audio_check = export_dir / f'{text_target}_applyfromparams.wav'
-        # print(f'saving applied params audio .wav to {audio_check}')
-        # raw_in_sig = tc.preprocess_audio(in_sig)
-        # test_out_sig = fx_channel(raw_in_sig.clone(), torch.sigmoid(out_params))
-        # tc.export_sig(tc.preprocess_audio(test_out_sig), audio_check)
 
     return out_params_dict
 
