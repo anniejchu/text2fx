@@ -69,7 +69,7 @@ def get_default_channel():
 
 def text2fx(
     model_name: str,
-    sig: AudioSignal, 
+    sig_in: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], 
     text: Union[str, List[str]],   
     channel: Channel,
     device: str = "cuda" if torch.cuda.is_available() else "cpu", 
@@ -84,12 +84,13 @@ def text2fx(
     export_audio: bool = False,
     log_tensorboard: bool = False,
 ):
-    # ah yes, the max morrison trick of hiding global variables as function members
-    # prevents loading the model everytime w/o needing to set it first as global variable
-    # if model=='ms_clap':
-    # at.util.seed(seed_i) # for doing fixing random parameters
 
     clap = get_model(model_name)
+
+     # sig = preprocess_audio(sig_in).to(device) #preprocessing initial sample (entire sample)
+    print("taking 3s sample")
+    sig = preprocess_audio(sig_in, 3).to(device) #for fast version, taking 3s excerpt
+
     # a save dir for our goods
     if log_tensorboard or export_audio:
         if not save_dir:
@@ -105,8 +106,8 @@ def text2fx(
         writer = SummaryWriter(writer_dir) #SummaryWriter is tensorboard writer
     else:
         writer = False
-    # params!
-    # NOTE: these aren't actually initialized to "zeros" since the we'll apply a sigmoid which will shift this up right? 
+
+    # Choosing random FX params to start
     if params_init_type=='zeros':
         params = torch.nn.parameter.Parameter(
             torch.zeros(sig.batch_size, channel.num_params).to(device) 
@@ -136,24 +137,20 @@ def text2fx(
             log.write(f"Params Initialization Type: {params_init_type}\n")
             log.write(f"Starting Params Values: {params.data.cpu().numpy()}\n")
             log.write(f"Starting Params Values (post sigmoid): {torch.sigmoid(params).data.cpu().numpy()}\n")
-
             log.write(f"Custom roll?: {roll_amt}\n")
             log.write("="*40 + "\n")
 
     params.requires_grad=True
-    # the optimizer!
-    optimizer = torch.optim.Adam([params], lr=lr)
+    optimizer = torch.optim.Adam([params], lr=lr)     # the optimizer!
 
-    #preprocessing initial sample
-    sig = preprocess_audio(sig).to(device)
-    # log what our initial effect sounds like (w/ random parameters applied)
-
-
+    # Play initial signal with random FX parameters applied
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
+
+    # Logging
     if writer:
         writer.add_audio("input", sig.samples[0][0], 0, sample_rate=sig.sample_rate)
         writer.add_audio("effected", init_sig.samples[0][0], 0, sample_rate=init_sig.sample_rate)
-    # sig.clone().cpu().write(save_dir / 'input.wav')
+    # sig_in.clone().cpu().write(save_dir / 'input.wav')
     if export_audio: #starting audio
         if sig.batch_size == 1:
             init_sig_path = Path(init_sig.path_to_file)
@@ -165,6 +162,7 @@ def text2fx(
                 sig[i].clone().detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_input.wav')
                 init_sig[i].detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
+    # Preparing our text target
     if isinstance(text, str):
         text = [text]
     assert len(text) == sig.batch_size or len(text) == 1
@@ -188,13 +186,13 @@ def text2fx(
         text_anchor_emb = clap.get_text_embeddings(text_neg_processed).detach()
 
     final_losses = []
-    # Optimize our parameters by matching effected audio against the target audio
+
+    # Single-Instance Optimization: Optimize our parameters by matching effected audio against the target text embedding
     pbar = tqdm(range(n_iters), total=n_iters)
     for n in pbar:
-        
         # Apply effect with out estimated parameters
+        # Code for signal rolling
         sig_roll = sig.clone()
-
         if roll_amt or roll_amt == 0:
             roll_amount = torch.randint(-roll_amt, roll_amt + 1, (sig_roll.batch_size,))
         else:
@@ -214,7 +212,7 @@ def text2fx(
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
 
-        # loss
+        # Calculating Loss
         if criterion == "directional_loss":
             batch_loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb)
             # loss = clip_directional_loss(embedding_effected, audio_in_emb, embedding_target, text_anchor_emb).mean()
@@ -253,14 +251,15 @@ def text2fx(
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
     
-    min_loss_index = int(np.argmin(final_losses))
-    # breakpoint()
+    # min_loss_index = int(np.argmin(final_losses)) # used for comparing across multiple runs
+
     # Play final signal with optimized effects parameters
-    out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
-    out_sig = preprocess_audio(out_sig)
-    
-    out_params = params.detach().cpu()
-    out_params_dict = channel.save_params_to_dict(out_params)
+    clean_sig = preprocess_audio(sig_in) #taking full input sample 
+    out_sig = channel(clean_sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
+    # out_sig = channel(sig.clone().to(device), torch.sigmoid(params)).clone().detach().cpu()
+    out_sig = preprocess_audio(out_sig) 
+    out_params = params.detach().cpu() #optimized output FXparams
+    out_params_dict = channel.save_params_to_dict(out_params) #mapping back to FX ranges
 
     if export_audio:
         if sig.batch_size == 1:
@@ -272,14 +271,12 @@ def text2fx(
                 out_sig[i].detach().cpu().write(save_dir / f'{i_init_sig_path.stem}_final.wav')
 
     # out_sig.write(save_dir / "final.wav")
+
     if writer:
         writer.add_audio("final", out_sig.samples[0][0], n_iters, sample_rate=out_sig.sample_rate)
         writer.close()
-    
-    init_sig_out = init_sig.detach().cpu()
-    init_sig_out = preprocess_audio(init_sig_out)
 
-    return out_sig, out_params, out_params_dict, #final_losses, min_loss_index, init_sig_out#params.detach().cpu()
+    return out_sig, out_params, out_params_dict
 
 
 # if __name__ == "__main__":

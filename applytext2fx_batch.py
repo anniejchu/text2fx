@@ -57,7 +57,7 @@ def main(audio_dir: Union[str, Path],
 
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
-        sig=in_sig_batch, 
+        sig_in=in_sig_batch, 
         text=sampled_descriptions, 
         channel=fx_channel,
         criterion=criterion, 

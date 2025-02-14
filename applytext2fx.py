@@ -6,7 +6,7 @@ from audiotools import AudioSignal
 import text2fx.core as tc
 from text2fx.__main__ import text2fx
 # from text2fx.production import text2fx_real as text2fx
-
+import torch
 from text2fx.constants import SAMPLE_RATE, DEVICE
 
 """
@@ -54,12 +54,13 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Preprocess full audio from path, return AudioSignal
     # in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
-    # print(f'1. processing input ... {audio_path}')
+    in_sig = audio_path
+    print(f'1. processing input ... {audio_path}')
 
-        # OPTIONAL: # Preprocess full audio from path, return AudioSignal
-    sig_short = AudioSignal.salient_excerpt(audio_path, duration=3).to(DEVICE)
-    in_sig = tc.preprocess_audio(sig_short).to(DEVICE)
-    print(f'1. processing SHORT (3s) input ... {audio_path}')
+    #     # OPTIONAL: # Preprocess full audio from path, return AudioSignal
+    # sig_short = AudioSignal.salient_excerpt(audio_path, duration=3).to(DEVICE)
+    # in_sig = tc.preprocess_audio(sig_short).to(DEVICE)
+    # print(f'1. processing SHORT (3s) input ... {audio_path}')
 
     # Create FX channel
     fx_channel = tc.create_channel(fx_chain)
@@ -69,7 +70,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
     print(f'3. applying text2fx ..., target {text_target}')
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
-        sig=in_sig, 
+        sig_in=in_sig, 
         text=text_target, 
         channel=fx_channel,
         criterion=criterion, 
@@ -94,8 +95,14 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
         audio_path_in = export_dir / 'input.wav'
         print(f'saving initial audio .wav to {audio_path_in}')
-        tc.export_sig(in_sig, audio_path_in)
+        tc.export_sig(tc.preprocess_audio(in_sig), audio_path_in)
  
+        # audio_check = export_dir / f'{text_target}_applyfromparams.wav'
+        # print(f'saving applied params audio .wav to {audio_check}')
+        # raw_in_sig = tc.preprocess_audio(in_sig)
+        # test_out_sig = fx_channel(raw_in_sig.clone(), torch.sigmoid(out_params))
+        # tc.export_sig(tc.preprocess_audio(test_out_sig), audio_check)
+
     return out_params_dict
 
 
