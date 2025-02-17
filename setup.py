@@ -9,7 +9,7 @@ setup(
     version="0.0.1",
     classifiers=[
     ],
-    description="Generative Music Modeling.",
+    description="text-guided audio FX",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="???",
