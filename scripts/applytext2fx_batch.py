@@ -7,24 +7,8 @@ from typing import List, Optional, Tuple, Union
 from audiotools import AudioSignal
 import text2fx.core as tc
 from text2fx.__main__ import text2fx
-from applytext2fx import main as process_file_main
-from itertools import product
 from text2fx.constants import SAMPLE_RATE, DEVICE
-import json
-import torch
 
-# AUDIO_SAMPLES_DIR = Path('assets/multistem_examples/10s')
-# SAMPLE_WORD_LIST = ['happy', 'sad', 'cold']
-
-"""
-TODOS
-1. simplify & remove sampling by n, do #assert len(batch_audio) == len(batch_texts)
-2. what cases
-
-case 1: multiple audio files, single text_target
-
-case 2: single audio file, list of words
-"""
 
 """
 case 2: single audio file, list of words
