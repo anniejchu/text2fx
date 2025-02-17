@@ -503,33 +503,6 @@ def convert_to_tensors(converted_settings):
 
     return tensor_settings
 
-# def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], salient_excerpt_duration: Optional[int] = None, sample_rate: Optional[int] = None) -> AudioSignal:
-#     #audio can be filename or AudioSignal; if tensor, must provide sample_rate
-#     if isinstance(audio_path_or_array, (str, Path)):
-#         if salient_excerpt_duration:
-#             return AudioSignal.salient_excerpt(audio_path_or_array, duration=salient_excerpt_duration).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
-#         else:
-#             return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
-
-#     elif isinstance(audio_path_or_array, AudioSignal):
-#         sig = audio_path_or_array.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
-#         if salient_excerpt_duration:
-#             return at_salient_excerpt(sig, duration=salient_excerpt_duration, loudness_cutoff=0)
-#         else:
-#             return sig
-#     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
-#         if sample_rate is None:
-#             raise ValueError("Must provide sample_rate if input is a tensor or ndarray")
-        
-#         sig = AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
-    
-#         if salient_excerpt_duration:
-#             return at_salient_excerpt(sig, duration=salient_excerpt_duration, loudness_cutoff=0)
-#         else:
-#             return sig
-#     else: 
-#         raise ValueError("not audiosignal, tensor, str, path or array")
-    
 def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], 
                      salient_excerpt_duration: Optional[int] = None, 
                      sample_rate: Optional[int] = None) -> AudioSignal:
@@ -687,47 +660,40 @@ def save_params_batch_to_jsons(in_dict, save_dir, data_labels: List[Tuple[Path, 
             file_path = os.path.join(save_dir, f"{idx}_index.json")
         save_dict_to_json(data, file_path)
 
-def sample_audio_files(audio_dir: Union[str, Path], n: int) -> List[Path]:
-    """
-    Samples n audio paths and n descriptions from the given directories.
 
-    :param audio_dir: Directory containing audio files.
-    :param descriptions_file: File containing descriptions.
-    :param n: Number of samples to process.
-    :return: List of tuples containing (audio_path, description).
-    """
-    # if isinstance(audio_dir, str):
-    #     audio_dir=Path(audio_dir)
-    audio_files = load_examples(audio_dir)
+# def load_words(words_source: Union[str, Path, List[str]]) -> List[str]:
+#     """
+#     Samples n words from the given word descriptor source.
 
-    if len(audio_files) < n:# or len(descriptions) < n:
-        raise ValueError("Not enough audio files to sample from")
+#     :param words_source: File containing word descriptors (one per line) or a list of descriptors.
+#     :return: List of sampled descriptor words.
+#     """
+#     if isinstance(words_source, (str, Path)):
+#         with open(words_source, 'r') as f:
+#             word_list = [line.strip() for line in f if line.strip()]
+#     else:
+#         word_list = words_source
 
-    # sampled_audio_files = audio_files[:n]
-    sampled_audio_files = random.sample(audio_files, n)
-    return sampled_audio_files 
+#     return word_list
 
-def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]:
+def load_words(words_source: Union[str, Path, List[str]]) -> List[str]:
     """
     Samples n words from the given word descriptor source.
 
     :param words_source: File containing word descriptors (one per line) or a list of descriptors.
-    :param n: Number of descriptor words to sample.
     :return: List of sampled descriptor words.
     """
     if isinstance(words_source, (str, Path)):
-        with open(words_source, 'r') as f:
-            word_list = [line.strip() for line in f if line.strip()]
+        # Check if the words_source is a single word (not a file path)
+        if len(words_source.split()) == 1:
+            word_list = [words_source.strip()]
+        else:
+            with open(words_source, 'r') as f:
+                word_list = [line.strip() for line in f if line.strip()]
     else:
         word_list = words_source
 
-    if len(word_list) < n:
-        raise ValueError("Not enough descriptions to sample from")
-
-    # sampled_words = word_list[:n]
-    sampled_words = random.sample(word_list, n)
-    return sampled_words
-
+    return word_list
 
 
 #hacking audiotools salient excerpt to work on AudioSignal type 

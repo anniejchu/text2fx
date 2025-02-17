@@ -6,7 +6,6 @@ from audiotools import AudioSignal
 import text2fx.core as tc
 from text2fx.__main__ import text2fx
 # from text2fx.production import text2fx_real as text2fx
-import torch
 from text2fx.constants import SAMPLE_RATE, DEVICE
 
 """
@@ -32,11 +31,6 @@ python applytext2fx.py assets/multistem_examples/10s/guitar.wav eq reverb compre
     --export_dir experiments/2025-01-28/guitar_multifx_2 \
     --params_init_type random \
     --n_iters 200 
-
-case 2: multiple audio files, single text_target
-
-
-case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
 """
 
 
@@ -52,7 +46,12 @@ def main(audio_path: Union[str, Path, AudioSignal],
          model: str = 'ms_clap') -> dict:
 
     # Preprocess full audio from path, return AudioSignal
-    in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
+    # print('text2fx on full sig')
+    # in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
+
+    print('text2fx on 3s salient_excerpt')
+    in_sig = tc.preprocess_audio(audio_path, salient_excerpt_duration=3).to(DEVICE)
+
     print(f'1. processing input ... {audio_path}')
 
     #     # OPTIONAL: # Preprocess full audio from path, return AudioSignal
@@ -82,6 +81,8 @@ def main(audio_path: Union[str, Path, AudioSignal],
     # Export JSON parameters & output audio
     if export_dir:
         export_dir = Path(export_dir)
+        export_dir.mkdir(parents=True, exist_ok=True)
+
         print(f'saving to {export_dir}')
         run_name = f"{tc.slugify(text_target)}"    
 
@@ -94,6 +95,9 @@ def main(audio_path: Union[str, Path, AudioSignal],
             run_num = int(latest_run.name.split('-')[-1]) + 1
             save_dir = export_dir / f"{run_name}-{run_num:03d}"
 
+        # Ensure save_dir exists
+        save_dir.mkdir(parents=True, exist_ok=True)
+
         json_path = save_dir / 'FXparams.json'
         print(f'saving final param json to {json_path}')
         tc.save_dict_to_json(out_params_dict, json_path)
@@ -102,7 +106,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
         print(f'saving final audio .wav to {audio_path}')
         tc.export_sig(signal_effected, audio_path)
 
-        audio_path_in = save_dir / 'input.wav'
+        audio_path_in = save_dir / 'input_to_text2fx.wav'
         print(f'saving initial audio .wav to {audio_path_in}')
         tc.export_sig(tc.preprocess_audio(in_sig), audio_path_in)
 

@@ -87,9 +87,9 @@ def text2fx(
 
     clap = get_model(model_name)
 
-     # sig = preprocess_audio(sig_in).to(device) #preprocessing initial sample (entire sample)
-    print("taking 3s sample")
-    sig = preprocess_audio(sig_in, 3).to(device) #for fast version, taking 3s excerpt
+    sig = preprocess_audio(sig_in).to(device) #preprocessing initial sample (entire sample)
+    # print("taking 3s sample")
+    # sig = preprocess_audio(sig_in, 3).to(device) #for fast version, taking 3s excerpt
 
     # a save dir for our goods
     if log_tensorboard or export_audio:
@@ -163,6 +163,7 @@ def text2fx(
                 init_sig[i].detach().cpu().write(save_dir / f'{init_sig.path_to_file[i].stem}_starting.wav')
 
     # Preparing our text target
+
     if isinstance(text, str):
         text = [text]
     assert len(text) == sig.batch_size or len(text) == 1
@@ -174,6 +175,7 @@ def text2fx(
     text_processed = [
         f"this sound is {t}" for t in text
     ]
+    # breakpoint()
     embedding_target = clap.get_text_embeddings(text_processed).detach()
     # print(embedding_target)
 
