@@ -15,7 +15,8 @@ The script saves:
 - Exported optimized audio file (saved to export_dir).
 
 Example Call:
-python apply.py assets/multistem_examples/10s/bass.wav eq tinny \
+from text2fx not text2fx/text2fx
+python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
     --export_dir experiments/2025-01-28/bass \
     --learning_rate 0.01 \
     --params_init_type random \
@@ -26,13 +27,13 @@ python apply.py assets/multistem_examples/10s/bass.wav eq tinny \
 
 
 case 1 (sparse): single audio file, single text_target
-python apply.py assets/multistem_examples/10s/guitar.wav eq reverb compression 'cold and dark' \
+python -m text2fx.apply assets/multistem_examples/10s/guitar.wav eq reverb compression 'cold and dark' \
     --export_dir experiments/2025-01-28/guitar_multifx_2 \
     --params_init_type random \
     --n_iters 200 
 
-python apply.py /home/annie/research/text2fx/assets/multistem_examples/10s/guitar.wav eq 'cold and dark' \
---export_dir experiments/2025-02-17/apply \
+python -m text2fx.apply /home/annie/research/text2fx/assets/multistem_examples/10s/guitar.wav eq 'cold and dark' \
+--export_dir experiments/2025-02-17/prod/single \
 --params_init_type random \
 --n_iters 200 
 """
