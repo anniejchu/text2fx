@@ -22,8 +22,7 @@ from functools import partial
 from collections import defaultdict
 import numbers
 
-from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH, DEVICE
-# from dasp_pytorch.modules import normalize
+from text2fx.constants import EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH, DEVICE
 
 def norm(val, min_val, max_val):
     return (val - min_val) / (max_val - min_val)
@@ -504,30 +503,67 @@ def convert_to_tensors(converted_settings):
 
     return tensor_settings
 
-# probably return tensor instead of audiosig for easier batching
-def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], salient_excerpt: Optional[int] = None, sample_rate: Optional[int] = None) -> AudioSignal:
-    #audio can be filename or AudioSignal; if tensor, must provide sample_rate
-    if isinstance(audio_path_or_array, (str, Path)):
-        if salient_excerpt:
-            return AudioSignal.salient_excerpt(audio_path_or_array, duration=3).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
-        else:
-            return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+# def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], salient_excerpt_duration: Optional[int] = None, sample_rate: Optional[int] = None) -> AudioSignal:
+#     #audio can be filename or AudioSignal; if tensor, must provide sample_rate
+#     if isinstance(audio_path_or_array, (str, Path)):
+#         if salient_excerpt_duration:
+#             return AudioSignal.salient_excerpt(audio_path_or_array, duration=salient_excerpt_duration).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+#         else:
+#             return AudioSignal(audio_path_or_array).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
 
+#     elif isinstance(audio_path_or_array, AudioSignal):
+#         sig = audio_path_or_array.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+#         if salient_excerpt_duration:
+#             return at_salient_excerpt(sig, duration=salient_excerpt_duration, loudness_cutoff=0)
+#         else:
+#             return sig
+#     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
+#         if sample_rate is None:
+#             raise ValueError("Must provide sample_rate if input is a tensor or ndarray")
+        
+#         sig = AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+    
+#         if salient_excerpt_duration:
+#             return at_salient_excerpt(sig, duration=salient_excerpt_duration, loudness_cutoff=0)
+#         else:
+#             return sig
+#     else: 
+#         raise ValueError("not audiosignal, tensor, str, path or array")
+    
+def preprocess_audio(audio_path_or_array: Union[torch.Tensor, str, Path, np.ndarray, AudioSignal], 
+                     salient_excerpt_duration: Optional[int] = None, 
+                     sample_rate: Optional[int] = None) -> AudioSignal:
+    """Preprocesses an audio input (file path, tensor, ndarray, or AudioSignal).
+    
+    Args:
+        audio_path_or_array: The audio input, can be a file path, tensor, ndarray, or AudioSignal.
+        salient_excerpt_duration: If provided, extracts the salient excerpt of this duration.
+        sample_rate: Required if input is a tensor or ndarray.
+        
+    Returns:
+        Processed `AudioSignal`.
+    """
+
+    if isinstance(audio_path_or_array, (str, Path)):  
+        sig = AudioSignal(audio_path_or_array)  
     elif isinstance(audio_path_or_array, AudioSignal):
-        if salient_excerpt:
-            return audio_path_or_array.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio().truncate_samples(SAMPLE_RATE * salient_excerpt)
-        else:
-            return audio_path_or_array.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()#.normalize(-24)
+        sig = audio_path_or_array  
     elif isinstance(audio_path_or_array, (torch.Tensor, np.ndarray)):
         if sample_rate is None:
-            raise ValueError("Must provide sample_rate if input is a tensor or ndarray")
-        if salient_excerpt:
-            return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio().truncate_samples(SAMPLE_RATE * salient_excerpt)#.normalize(-24)
-        else:
-            return AudioSignal(audio_path_or_array, sample_rate).to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()#.normalize(-24)
-    else: 
-        raise ValueError("not audiosignal, tensor, str, path or array")
+            raise ValueError("Must provide `sample_rate` if input is a tensor or ndarray")
+        sig = AudioSignal(audio_path_or_array, sample_rate)
+    else:
+        raise ValueError("Input must be a file path, AudioSignal, tensor, or ndarray")
     
+    # Standard processing: convert to mono, resample, ensure max normalization
+    sig = sig.to_mono().resample(SAMPLE_RATE).ensure_max_of_audio()
+    
+    # Apply salient excerpt if specified
+    if salient_excerpt_duration:
+        return at_salient_excerpt(sig, duration=salient_excerpt_duration, loudness_cutoff=0)
+
+    return sig
+
 def preprocess_export_audiodir(dir_path, out_dir_path):
     for file in load_examples(dir_path):
         x = preprocess_audio(file)
