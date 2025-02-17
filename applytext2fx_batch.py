@@ -28,14 +28,23 @@ case 2: single audio file, list of words
 
 """
 case 2: single audio file, list of words
-
+python applytext2fx_batch.py \
+    --audio_source assets/multistem_examples/10s/drums.wav \
+    --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
+    --fx_chain eq \
+    --export_dir experiments/2025-02-17/batch_test_singlesig_multidescriptor \
+    --learning_rate 0.01 \
+    --params_init_type random \
+    --n_iters 50 \
+    --criterion cosine-sim \
+    --model ms_clap
 
 case 1: multiple audio files, single text_target
 python applytext2fx_batch.py \
-    --audio_dir assets/multistem_examples/10s \
+    --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold" \
     --fx_chain eq \
-    --export_dir experiments/2025-02-17/batch_test_batchaudio_singledescriptor \
+    --export_dir experiments/2025-02-17/batch_test_batchaudio_singledescriptor2 \
     --learning_rate 0.01 \
     --params_init_type random \
     --n_iters 50 \
@@ -44,10 +53,10 @@ python applytext2fx_batch.py \
 
 case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
 python applytext2fx_batch.py \
-    --audio_dir assets/multistem_examples/10s \
+    --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
-    --export_dir experiments/2025-02-17/batch_test \
+    --export_dir experiments/2025-02-17/batch_test2 \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -56,23 +65,8 @@ python applytext2fx_batch.py \
     --model ms_clap
     """
 
-# # case 2: single audio file, list of words
-# def clone_single_sig(audio_path: Union[str, Path],
-#               descriptions_source: Union[str, List[str]]):
-#     sig = AudioSignal(audio_path)
-    
-#     signal_list = [sig for _ in range(len(descriptions_source))]
-#     sig_batch = AudioSignal.batch(signal_list)
-#     print(sig_batch)
-#     return sig_batch
 
-
-# # case 3: multiple audio files, single text_target
-# def multicopy_descriptors():
-#     pass
-
-
-def main(audio_dir: Union[str, Path],
+def main(audio_source: Union[str, Path], #can be path to single file or dir of files
          descriptions_source: Union[str, List[str]],
          fx_chain: List[str],
          export_dir: Union[str, Path],
@@ -83,21 +77,28 @@ def main(audio_dir: Union[str, Path],
          criterion: str = 'cosine-sim',
          model: str = 'ms_clap'):
     
-    audio_file_paths = tc.load_examples(audio_dir)
-    in_sig_batch = tc.wavs_to_batch(audio_file_paths)
+    audio_file_paths = tc.load_examples(audio_source)
     descriptor_list = tc.load_words(descriptions_source)
+
+    if len(audio_file_paths) > 1:
+        in_sig_batch = tc.wavs_to_batch(audio_file_paths)
+    else:
+        sig = AudioSignal(Path(audio_source))
+        signal_list = [sig for _ in range(len(descriptor_list))]
+        in_sig_batch = AudioSignal.batch(signal_list)
 
     print(in_sig_batch)
     print(descriptor_list)
+
+    print(in_sig_batch.batch_size, len(descriptor_list))
+
+    #at this point, in_sig_batch must have same length or descriptor list or only one word
     assert in_sig_batch.batch_size == len(descriptor_list) or len(descriptor_list) == 1
 
-    print(audio_file_paths, descriptor_list)
-    breakpoint()
+    print(f'audio source paths: {audio_file_paths}, descriptor: {descriptor_list}')
     
     fx_channel = tc.create_channel(fx_chain)
-    print(fx_channel)
 
-    breakpoint()
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig_in=in_sig_batch, 
@@ -110,14 +111,16 @@ def main(audio_dir: Union[str, Path],
         roll_amt=roll_amt,
     )
     # out_params_dict = fx_channel.save_params_to_dict(sig_effected_params)
-    breakpoint()
-    if len(descriptor_list) == 1:
+    if len(descriptor_list) == 1 and len(audio_file_paths) != 1:
     # Repeat the single descriptor to match the length of audio_file_paths
         descriptor_list = [descriptor_list[0]] * len(audio_file_paths)
 
+    elif len(audio_file_paths) == 1 and len(descriptor_list) != 1:
+        audio_file_paths = [audio_file_paths[0]] * len(descriptor_list)
+
+
+    assert len(audio_file_paths) == len(descriptor_list)
     data_labels = list(zip(audio_file_paths, descriptor_list))
-    print(data_labels)
-    breakpoint()
 
     if export_dir is not None:
         print(f'saving final audio .wav to {export_dir}')
@@ -131,22 +134,10 @@ def main(audio_dir: Union[str, Path],
     return out_params_dict
 
 
-# if __name__ == "__main__":
-#     main(
-#         audio_dir ='assets/multistem_examples/10s', 
-#         descriptions_source = ['happy', 'sad', 'warm', 'cold'],
-#         n = 3,
-#         fx_chain = ['compressor', 'reverb'],
-#         export_dir = 'experiments/2024-07-09/batched_text',
-#         params_init_type='zeros',
-#         n_iters= 50,
-#         criterion = 'cosine-sim',
-#         model= 'ms_clap')
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Process multiple audio files based on sampled descriptions.')
-    parser.add_argument('--audio_dir', type=str, default=None, help='Directory containing audio files.')
+    parser.add_argument('--audio_source', type=str, default=None, help='Path to file or Directory containing audio files.')
     parser.add_argument('--descriptions_source', type=str, default=None, help='Comma-separated list of descriptions.')
     parser.add_argument('--fx_chain', type=str, nargs='+', default='eq', help='List of FX chain elements.')
     parser.add_argument('--export_dir', type=str, default = None, help='Directory to save processed outputs.')
@@ -162,7 +153,7 @@ if __name__ == "__main__":
     print(descriptions)
 
     main(
-        audio_dir=args.audio_dir,
+        audio_source=args.audio_source,
         descriptions_source=descriptions,#args.descriptions_source,
         fx_chain=args.fx_chain,
         export_dir=args.export_dir,

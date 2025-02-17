@@ -305,8 +305,19 @@ def apply_audealize_single_word(input_audio_file: AudioSignal, text: Union[str, 
         
     return signal_effected
 
-def load_examples(dir_path: Union[str,Path]) -> List[Path]:
+# def load_examples(dir_path: Union[str,Path]) -> List[Path]:
+#     dir_path = Path(dir_path)  # Convert string to Path if necessary
+#     exts = ["mp3", "wav", "flac"]
+#     example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
+#     example_files = sum(example_files, [])  # Trick to flatten list of lists
+#     return example_files
+
+def load_examples(dir_path: Union[str, Path]) -> List[Path]:
     dir_path = Path(dir_path)  # Convert string to Path if necessary
+    
+    if dir_path.is_file():  # If it's a single file, return it as a list
+        return [dir_path]
+    
     exts = ["mp3", "wav", "flac"]
     example_files = [list(dir_path.rglob(f"*.{e}")) for e in exts]
     example_files = sum(example_files, [])  # Trick to flatten list of lists
@@ -660,21 +671,6 @@ def save_params_batch_to_jsons(in_dict, save_dir, data_labels: List[Tuple[Path, 
             file_path = os.path.join(save_dir, f"{idx}_index.json")
         save_dict_to_json(data, file_path)
 
-
-# def load_words(words_source: Union[str, Path, List[str]]) -> List[str]:
-#     """
-#     Samples n words from the given word descriptor source.
-
-#     :param words_source: File containing word descriptors (one per line) or a list of descriptors.
-#     :return: List of sampled descriptor words.
-#     """
-#     if isinstance(words_source, (str, Path)):
-#         with open(words_source, 'r') as f:
-#             word_list = [line.strip() for line in f if line.strip()]
-#     else:
-#         word_list = words_source
-
-#     return word_list
 
 def load_words(words_source: Union[str, Path, List[str]]) -> List[str]:
     """
