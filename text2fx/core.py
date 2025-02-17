@@ -5,12 +5,10 @@ import re
 import random
 import json
 import os
-from pathlib import Path
 from typing import Union, List, Optional, Tuple, Iterable, Dict
 
 import torch
 import torchaudio.transforms as T
-from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import requests
 import matplotlib.pyplot as plt
@@ -22,7 +20,7 @@ import dasp_pytorch
 import auraloss
 from functools import partial
 from collections import defaultdict
-
+import numbers
 
 from text2fx.constants import PROJECT_DIR, ASSETS_DIR, PRETRAINED_DIR, DATA_DIR, RUNS_DIR, EQ_freq_bands, SAMPLE_RATE, EQ_GAINS_PATH, DEVICE
 # from dasp_pytorch.modules import normalize
@@ -693,3 +691,80 @@ def sample_words(words_source: Union[str, Path, List[str]], n: int) -> List[str]
     # sampled_words = word_list[:n]
     sampled_words = random.sample(word_list, n)
     return sampled_words
+
+
+
+#hacking audiotools salient excerpt to work on AudioSignal type 
+def random_state(seed: Union[int, np.random.RandomState]):
+    """
+    Turn seed into a np.random.RandomState instance.
+
+    Parameters
+    ----------
+    seed : typing.Union[int, np.random.RandomState] or None
+        If seed is None, return the RandomState singleton used by np.random.
+        If seed is an int, return a new RandomState instance seeded with seed.
+        If seed is already a RandomState instance, return it.
+        Otherwise raise ValueError.
+
+    Returns
+    -------
+    np.random.RandomState
+        Random state object.
+
+    Raises
+    ------
+    ValueError
+        If seed is not valid, an error is thrown.
+    """
+    if seed is None or seed is np.random:
+        return np.random.mtrand._rand
+    elif isinstance(seed, (numbers.Integral, np.integer, int)):
+        return np.random.RandomState(seed)
+    elif isinstance(seed, np.random.RandomState):
+        return seed
+    else:
+        raise ValueError(
+            "%r cannot be used to seed a numpy.random.RandomState" " instance" % seed
+        )
+
+def at_excerpt(signal: AudioSignal,
+            offset: float = None,
+            duration: float = None,
+            state: Union[np.random.RandomState, int] = None):
+    signal = signal.clone()
+    total_duration = signal.duration
+    state = random_state(state)
+    lower_bound = 0 if offset is None else offset
+    upper_bound = max(total_duration - duration, 0)
+    offset = state.uniform(lower_bound, upper_bound)
+
+        # Convert offset and duration to number of samples
+    offset_samples = int(offset * signal.sample_rate)
+    duration_samples = int(duration * signal.sample_rate)
+    signal.audio_data = signal.audio_data[..., offset_samples:offset_samples + duration_samples]
+
+    signal.metadata["offset"] = offset
+    signal.metadata["duration"] = duration
+    return signal
+
+def at_salient_excerpt(
+        sig: AudioSignal,
+        duration: int, 
+        loudness_cutoff: float = None,
+        num_tries: int = 8,
+        state: Union[np.random.RandomState, int] = None):
+
+    state = random_state(state)
+    if loudness_cutoff is None:
+        excerpt = at_excerpt(sig, duration=duration, state=state)
+    else:
+        loudness = -np.inf
+        num_try = 0
+        while loudness <= loudness_cutoff:
+            excerpt = at_excerpt(sig, duration=duration, state=state)
+            loudness = excerpt.loudness()
+            num_try += 1
+            if num_tries is not None and num_try >= num_tries:
+                break
+    return excerpt
