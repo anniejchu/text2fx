@@ -68,7 +68,7 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a h
 **Case 1: multiple audio files, single text_target**
 ```
 python -m text2fx.applybatch \
-    --audio_source assets/multistem_examples/10s \
+    --audio_source notebooks/audio \
     --descriptions_source "cold" \
     --fx_chain eq \
     --export_dir experiments/prod_final/case1
@@ -76,7 +76,7 @@ python -m text2fx.applybatch \
 **Case 2: single audio file, multiple text_target**
 ```
 python -m text2fx.applybatch \
-    --audio_source assets/multistem_examples/10s/drums.wav \
+    --audio_source notebooks/audio/guitar.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq compression\
     --export_dir experiments/prod_final/case2
@@ -84,7 +84,7 @@ python -m text2fx.applybatch \
 **Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)**
 ```
 python -m text2fx.applybatch \
-    --audio_source assets/multistem_examples/10s \
+    --audio_source notebooks/audio \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
     --export_dir experiments/prod_final/case3
