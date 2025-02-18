@@ -55,7 +55,7 @@ python -m text2fx.apply /home/annie/research/text2fx/assets/multistem_examples/1
 def main(audio_path: Union[str, Path, AudioSignal], 
          fx_chain: List[str], 
          text_target: str, 
-         export_dir: str,
+         export_dir: str = None,
          learning_rate: float = 0.01,
          params_init_type: str = 'random',
          roll_amt: Optional[int] = None,
