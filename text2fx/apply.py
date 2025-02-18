@@ -1,5 +1,6 @@
 from pathlib import Path
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Tuple
+import torch
 
 from audiotools import AudioSignal
 
@@ -17,16 +18,15 @@ The script saves:
 Example Call:
 from text2fx not text2fx/text2fx
 
-TODO: TRY THE FOLLOWING
 python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
-    --export_dir experiments/2025-01-28/bass \
+    --export_dir experiments/2025-02-18/prod_detailedlog2 \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
-    --n_iters 100 \
+    --n_iters 400 \
     --criterion cosine-sim \
-    --model ms_clap \ 
-    --detailed_logging
+    --model ms_clap \
+    --detailed_log
 
 python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
     --export_dir experiments/2025-01-28/bass \
@@ -62,7 +62,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
          n_iters: int = 600,
          criterion: str = 'cosine-sim',
          model: str = 'ms_clap',
-         detailed_log:bool = False) -> dict:
+         detailed_log:bool = False) -> Tuple[AudioSignal, torch.Tensor, dict]:
 
     # Preprocess full audio from path, return AudioSignal
     print('text2fx on full sig')
@@ -81,13 +81,22 @@ def main(audio_path: Union[str, Path, AudioSignal],
     print(f'3. applying text2fx ..., target {text_target}')
     if detailed_log:
         print('with detailed logging every 100 iters')
+    
+        # Export JSON parameters & output audio
+    if export_dir:
+        export_dir = Path(export_dir)
+        export_dir.mkdir(parents=True, exist_ok=True)
+        save_dir = tc.create_save_dir(f'{text_target}', Path(export_dir))
+    else:
+        save_dir = None
+        
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig_in=audio_path, 
         text=text_target, 
         channel=fx_channel,
         criterion=criterion, 
-        save_dir=export_dir,
+        save_dir=save_dir,
         params_init_type=params_init_type,
         lr=learning_rate,
         n_iters=n_iters,
@@ -95,26 +104,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
         detailed_log=detailed_log,
     )
 
-    # Export JSON parameters & output audio
     if export_dir:
-        export_dir = Path(export_dir)
-        export_dir.mkdir(parents=True, exist_ok=True)
-
-        print(f'saving to {export_dir}')
-        run_name = f"{tc.slugify(text_target)}"    
-
-        # checking for existing runs
-        existing_runs = [d for d in export_dir.iterdir() if d.is_dir() and d.name.startswith(run_name)]
-        if len(existing_runs) == 0:
-            save_dir = export_dir / f"{run_name}-001"
-        else:
-            latest_run = sorted(existing_runs, key=lambda x: int(x.name.split('-')[-1]))[-1]
-            run_num = int(latest_run.name.split('-')[-1]) + 1
-            save_dir = export_dir / f"{run_name}-{run_num:03d}"
-
-        # Ensure save_dir exists
-        save_dir.mkdir(parents=True, exist_ok=True)
-
         json_path = save_dir / 'FXparams.json'
         print(f'saving final param json to {json_path}')
         tc.save_dict_to_json(out_params_dict, json_path)

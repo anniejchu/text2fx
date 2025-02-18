@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict
 
 from audiotools import AudioSignal
 
@@ -65,38 +65,56 @@ def normalize_param_dict(param_dict: dict, channel) -> dict:
 
     return all_denorm_params
 
-
 def apply_fx_to_sig(
-        audio_dir_or_file: Union[str, Path, List[str], List[Path]], 
-        params_dict_path: Union[str, Path],
-        export_path: str):
+        audio_source: Union[AudioSignal, str, Path, List[str], List[Path]], 
+        params_dict: Union[str, Path, Dict[str, Dict[str, float]]], 
+        export_path: Optional[str]=None):
     """
-    Assumes param_dict json is formatted like 
+    Applies effects to an audio signal based on parameters provided.
+    
+    Parameters:
+    - audio_source: An AudioSignal, file path, directory, or list of audio file paths.
+    - params_dict: A dictionary containing effect parameters or a path to a JSON file.
+    - export_path (optional): The path where the processed audio will be saved.
+    
+    Assumes param_dict is formatted like:
         {
             'Effect1': {'param1': value1, 'param2': value2, ...},
             'Effect2': {'param1': value3, 'param2': value4, ...},
             ...
         }
     """
-    if isinstance(audio_dir_or_file, (str, Path)):
-        audio_dir_or_file = Path(audio_dir_or_file)
-        if audio_dir_or_file.is_dir():
-            print(f'{audio_dir_or_file} is directory')
-            in_sig = tc.wavs_to_batch(audio_dir_or_file)
+    
+    # Load audio files
+    if isinstance(audio_source, (str, Path)):
+        audio_source = Path(audio_source)
+        if audio_source.is_dir():
+            print(f'{audio_source} is a directory')
+            in_sig = tc.wavs_to_batch(audio_source)
         else:
-            print(f'{audio_dir_or_file} is a file')
-            in_sig = tc.preprocess_audio(audio_dir_or_file).to(DEVICE)
-    else:
-        print(f'{audio_dir_or_file} is a list of files')
-        in_sig = tc.wavs_to_batch(audio_dir_or_file)
+            print(f'{audio_source} is a file')
+            in_sig = tc.preprocess_audio(audio_source).to(DEVICE)
+    elif isinstance(audio_source, list) and all(isinstance(item, (str, Path)) for item in audio_source):
+        print(f'{audio_source} is a list of files')
+        in_sig = tc.wavs_to_batch(audio_source)
+    else: 
+        print(f'{audio_source} is AudioSignal')
+        in_sig = tc.preprocess_audio(audio_source).to(DEVICE)
 
-    with open(params_dict_path, 'r') as f:
-        _params_dict = json.load(f)
+    # Load parameters (JSON file or dictionary)
+    if isinstance(params_dict, (str, Path)):
+        with open(params_dict, 'r') as f:
+            params_dict = json.load(f)
+    elif not isinstance(params_dict, dict):
+        raise ValueError("params_dict must be a dictionary or a path to a JSON file")
 
-    fx_chain = list(_params_dict.keys())
+    # Process the audio using params_dict
+    # print("Applying effects with parameters:", params_dict)
+
+    fx_chain = list(params_dict.keys())
     fx_channel = tc.create_channel(fx_chain)
 
-    params_dict = normalize_param_dict(_params_dict, fx_channel) #normalizing 
+    params_dict = normalize_param_dict(params_dict, fx_channel) #normalizing 
 
     # depending on exact json dict output, this will change
     params_list = torch.tensor([value for effect_params in params_dict.values() for value in effect_params.values()])
@@ -105,21 +123,22 @@ def apply_fx_to_sig(
     params = params_list.expand(in_sig.batch_size, -1).to(DEVICE) #shape = (n_batch, n_params)
 
     out_sig = fx_channel(in_sig.clone().to(DEVICE), params).ensure_max_of_audio()#normalize(-24)
-    tc.export_sig(out_sig.clone().detach().cpu(), export_path)
-    return out_sig
+    if export_path:
+        tc.export_sig(out_sig.clone().detach().cpu(), export_path)
+    return tc.preprocess_audio(out_sig.detach().cpu())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Apply effects to an audio file or dir of audio files based on parameters in a JSON file and export the processed file.")
     
-    parser.add_argument('--audio_dir_or_file', type=str, required=True, help="Path to the input audio file.")
-    parser.add_argument('--params_dict_path', type=str, required=True, help="Path to the JSON file containing effect parameters.")
-    parser.add_argument('--export_path', type=str, required=True, help="Path to save the processed audio file.")
+    parser.add_argument('--audio_source', type=str, required=True, help="Path to the input audio file.")
+    parser.add_argument('--params_dict', type=str, required=True, help="Path to the JSON file containing FX parameters.")
+    parser.add_argument('--export_path', type=str, required=False, default=None, help="Optional Path to save the processed audio file.")
 
     args = parser.parse_args()
 
     apply_fx_to_sig(
-        audio_dir_or_file=args.audio_dir_or_file,
-        params_dict_path=args.params_dict_path,
+        audio_dir_or_file=args.audio_source,
+        params_dict_path=args.params_dict,
         export_path=args.export_path
     )
 

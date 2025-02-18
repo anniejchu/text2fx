@@ -1,9 +1,7 @@
-import os
-import random
 import argparse
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-
+import torch
 from audiotools import AudioSignal
 import text2fx.core as tc
 from text2fx.__main__ import text2fx
@@ -60,7 +58,7 @@ def main(audio_source: Union[str, Path], #can be path to single file or dir of f
          roll_amt: Optional[int] = None,
          n_iters: int = 600,
          criterion: str = 'cosine-sim',
-         model: str = 'ms_clap'):
+         model: str = 'ms_clap') -> Tuple[AudioSignal, torch.Tensor, dict]:
     
     audio_file_paths = tc.load_examples(audio_source)
     descriptor_list = tc.load_words(descriptions_source)

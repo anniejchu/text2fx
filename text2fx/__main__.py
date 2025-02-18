@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 import json
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio, detensor_dict
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio, detensor_dict, slugify
 from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
 
@@ -92,11 +92,12 @@ def text2fx(
     # sig = preprocess_audio(sig_in, 3).to(device) #for fast version, taking 3s excerpt
 
     # a save dir for our goods
-    if log_tensorboard or export_audio:
+    if log_tensorboard or export_audio or detailed_log:
         if not save_dir:
             save_dir = create_save_dir(f'{text}_{lr}_{criterion}', RUNS_DIR)
         else:
             save_dir = Path(save_dir)
+            # save_dir = create_save_dir(f'{text}', Path(save_dir))
             save_dir.mkdir(exist_ok=True, parents=True)
 
     # create a writer for saving stuff to tensorboard
@@ -145,6 +146,7 @@ def text2fx(
 
     # Play initial signal with random FX parameters applied
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
+    init_sig_path = Path(init_sig.path_to_file)
 
     # Logging
     if writer:
@@ -153,7 +155,6 @@ def text2fx(
     # sig_in.clone().cpu().write(save_dir / 'input.wav')
     if export_audio: #starting audio
         if sig.batch_size == 1:
-            init_sig_path = Path(init_sig.path_to_file)
             sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_input.wav')
             init_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_starting.wav')
 
@@ -253,7 +254,7 @@ def text2fx(
         
         # detailed logging, log params + signal every 100 iters
         if detailed_log:
-            detailed_dir = save_dir /'detailed_logs'
+            detailed_dir = Path(save_dir) / 'detailed_logs'
             detailed_dir.mkdir(parents=True, exist_ok=True)
             json_log_path = detailed_dir / "params_log.json"  # Path to save the JSON file
             if n % 100 == 0:
