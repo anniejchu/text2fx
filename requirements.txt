@@ -8,3 +8,4 @@ auraloss[all]
 # transformers==4.30.0
 msclap
 gradio
+jupyter
