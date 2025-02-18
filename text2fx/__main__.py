@@ -127,7 +127,7 @@ def text2fx(
         raise ValueError
     
     # Log the model, torch amount, starting parameters, and their values
-    if log_tensorboard or export_audio:
+    if log_tensorboard or export_audio or detailed_log:
         log_file = save_dir / f"experiment_log.txt"
         with open(log_file, "w") as log:
             log.write(f"Model: {model_name}\n")
@@ -201,7 +201,7 @@ def text2fx(
         else:
             roll_amount = torch.randint(0, sig_roll.signal_length, (sig_roll.batch_size,))
 
-        if log_tensorboard or export_audio:
+        if log_tensorboard or export_audio or detailed_log:
             with open(log_file, "a") as log:
                 log.write(f"Iteration {n}: roll_amount: {roll_amount.cpu().numpy()}\n")
 
@@ -266,13 +266,11 @@ def text2fx(
                     json_log_file.write("\n")  # For better readability in the file
                     json.dump({"iteration": n, "raw_params": params_i.tolist()}, json_log_file)
                     json_log_file.write("\n")  # For better readability in the file
-
                 
                 signal_effected.detach().cpu().ensure_max_of_audio().write(detailed_dir / f'{init_sig_path.stem}_{n}.wav')
                 # signal_effected_original.detach().cpu().ensure_max_of_audio().write(detailed_dir / f'{init_sig_path.stem}_{n}.wav')
 
-
-    if log_tensorboard or export_audio:
+    if log_tensorboard or export_audio or detailed_log:
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
     
