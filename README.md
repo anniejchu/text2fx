@@ -92,7 +92,7 @@ python -m text2fx.applybatch \
 
 <h2 id="demo">Text2FX Demo</h2>
 
- Try Text2FX yourself:[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/text2fx/blob/clean/notebooks/demo.ipynb)
+ Try Text2FX yourself:[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/text2fx/blob/main/notebooks/demo.ipynb)
 
 
 <h2 id="citations">Citation</h2>
