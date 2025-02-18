@@ -127,7 +127,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
         print(f'saving initial audio .wav to {audio_path_in}')
         tc.export_sig(tc.preprocess_audio(in_sig), audio_path_in)
 
-    return out_params_dict
+    return signal_effected, out_params, out_params_dict
 
 
 if __name__ == "__main__":

@@ -116,7 +116,7 @@ def main(audio_source: Union[str, Path], #can be path to single file or dir of f
         tc.save_dict_to_json(out_params_dict, export_param_dict_path)
         tc.save_params_batch_to_jsons(out_params_dict, export_dir, data_labels=data_labels)
 
-    return out_params_dict
+    return signal_effected, out_params, out_params_dict
 
 
 if __name__ == "__main__":
