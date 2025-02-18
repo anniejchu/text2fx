@@ -3,7 +3,7 @@ data/*
 pretrained/*
 experiments/*
 runs/*
-notebooks/*
+# notebooks/
 assets/*
 
 **/..git/*
@@ -27,3 +27,4 @@ scrapapp*
 b4*
 old_process*
 production.py
+build/*
