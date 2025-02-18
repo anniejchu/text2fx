@@ -94,7 +94,7 @@ python -m text2fx.applybatch \
 <!-- Try Text2FX yourself:  
 Try it for yourself: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/csteinmetz1/dasp-pytorch/blob/main/examples/quickstart.ipynb) -->
 
- Try Text2FX yourself: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/blob/clean/text2fx/notebooks/demo.ipynb)
+ Try Text2FX yourself: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/text2fx/blob/clean/notebooks/demo.ipynb)
 
 
 <h2 id="citations">Citation</h2>
