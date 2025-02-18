@@ -5,7 +5,7 @@ This repository contains utilities for mapping text descriptions to audio effect
 ## Text2FX: Harnessing CLAP Embeddings for Text-Guided Audio Effects
 Read the paper [here](https://arxiv.org/abs/2409.18847)! Accepted at ICASSP 2025
 
-### Abstract
+**Abstract**
 This work introduces Text2FX, a method that leverages CLAP embeddings and differentiable digital signal processing to control audio effects, such as equalization and reverberation, using open-vocabulary natural language prompts (e.g., "make this sound in-your-face and bold"). Text2FX operates without retraining any models, relying instead on single-instance optimization within the existing embedding space, thus enabling a flexible, scalable approach to open-vocabulary sound transformations through interpretable and disentangled FX manipulation. We show that CLAP encodes valuable information for controlling audio effects and propose two optimization approaches using CLAP to map text to audio effect parameters. While we demonstrate with CLAP, this approach is applicable to any shared text-audio embedding space. Similarly, while we demonstrate with equalization and reverberation, any differentiable audio effect may be controlled.  %to control EQ and Reverb. 
 We conduct a listener study with diverse text prompts and source audio to evaluate the quality and alignment of these methods with human perception. 
 <!-- ## Contents
@@ -65,7 +65,7 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a h
 ```
 
 ### Batching: n audio files AND/OR n text descriptors
-#### Case 1: multiple audio files, single text_target
+**Case 1: multiple audio files, single text_target**
 ```
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
@@ -73,7 +73,7 @@ python -m text2fx.applybatch \
     --fx_chain eq \
     --export_dir experiments/prod_final/case1
 ```
-#### Case 2: single audio file, multiple text_target
+**Case 2: single audio file, multiple text_target**
 ```
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s/drums.wav \
@@ -81,7 +81,7 @@ python -m text2fx.applybatch \
     --fx_chain eq compression\
     --export_dir experiments/prod_final/case2
 ```
-#### Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)
+**Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)**
 ```
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
@@ -91,9 +91,6 @@ python -m text2fx.applybatch \
 ```
 
 <h2 id="demo">Text2FX Demo</h2>
-<!-- Try Text2FX yourself:  
-Try it for yourself: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/csteinmetz1/dasp-pytorch/blob/main/examples/quickstart.ipynb) -->
-
  Try Text2FX yourself: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/text2fx/blob/clean/notebooks/demo.ipynb)
 
 
