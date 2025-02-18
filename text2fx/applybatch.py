@@ -26,7 +26,7 @@ python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s/drums.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq \
-    --export_dir experiments/2025-02-17/prod/batch_test_singlesig_multidescriptor \
+    --export_dir experiments/2025-02-18/prod/batch_test_singlesig_multidescriptor \
     --learning_rate 0.01 \
     --params_init_type random \
     --n_iters 50 \
@@ -52,7 +52,7 @@ python -m text2fx.applybatch \
 def main(audio_source: Union[str, Path], #can be path to single file or dir of files
          descriptions_source: Union[str, List[str]],
          fx_chain: List[str],
-         export_dir: Union[str, Path],
+         export_dir: Union[str, Path] = None, #optional
          learning_rate: float = 0.001,
          params_init_type: str = 'random',
          roll_amt: Optional[int] = None,
@@ -70,10 +70,10 @@ def main(audio_source: Union[str, Path], #can be path to single file or dir of f
         signal_list = [sig for _ in range(len(descriptor_list))]
         in_sig_batch = AudioSignal.batch(signal_list)
 
-    print(in_sig_batch)
-    print(descriptor_list)
+    # print(in_sig_batch)
+    # print(descriptor_list)
 
-    print(in_sig_batch.batch_size, len(descriptor_list))
+    # print(in_sig_batch.batch_size, len(descriptor_list))
 
     #at this point, in_sig_batch must have same length or descriptor list or only one word
     assert in_sig_batch.batch_size == len(descriptor_list) or len(descriptor_list) == 1

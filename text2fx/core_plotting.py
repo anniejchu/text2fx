@@ -96,9 +96,20 @@ def plot_all_iters(sample_dir):
     graph_dir = Path(sample_dir)
     ORIGINAL_wav = next(file for file in graph_dir.rglob('*') if 'ref' in file.name)
     prefix, _ = ORIGINAL_wav.stem.split('__', 1)
-    for n in range(0, 650, 100):
-        n_wav = graph_dir / f'{prefix}_{n}.wav'
-        plot_response_files(ORIGINAL_wav, n_wav, tag=f'iter {n}')
+
+    # Find all files with the same prefix (excluding the reference file)
+    iter_files = sorted(graph_dir.rglob(f'{prefix}_*.wav'))
+    
+    for n_wav in iter_files:
+        # Skip the reference file itself
+        if n_wav == ORIGINAL_wav:
+            continue
+        # Plot the response for each iteration file
+        plot_response_files(ORIGINAL_wav, n_wav, tag=f'iter {n_wav.stem}')
+
+    # for n in range(0, 650, 100):
+    #     n_wav = graph_dir / f'{prefix}_{n}.wav'
+    #     plot_response_files(ORIGINAL_wav, n_wav, tag=f'iter {n}')
     
 #################### plot eq curve givne params ##############
 def load_eq_params(json_data):

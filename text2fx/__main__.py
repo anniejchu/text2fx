@@ -146,7 +146,6 @@ def text2fx(
 
     # Play initial signal with random FX parameters applied
     init_sig = channel(sig.clone().to(device), torch.sigmoid(params))
-    init_sig_path = Path(init_sig.path_to_file)
 
     # Logging
     if writer:
@@ -155,6 +154,7 @@ def text2fx(
     # sig_in.clone().cpu().write(save_dir / 'input.wav')
     if export_audio: #starting audio
         if sig.batch_size == 1:
+            init_sig_path = Path(init_sig.path_to_file)
             sig.clone().detach().cpu().write(save_dir / f'{init_sig_path.stem}_input.wav')
             init_sig.detach().cpu().write(save_dir / f'{init_sig_path.stem}_starting.wav')
 
@@ -254,10 +254,12 @@ def text2fx(
         
         # detailed logging, log params + signal every 100 iters
         if detailed_log:
+            init_sig_path = Path(init_sig.path_to_file)
             detailed_dir = Path(save_dir) / 'detailed_logs'
             detailed_dir.mkdir(parents=True, exist_ok=True)
             json_log_path = detailed_dir / "params_log.json"  # Path to save the JSON file
-            if n % 100 == 0:
+            sig.clone().detach().cpu().write(detailed_dir / f'{init_sig_path.stem}__ref.wav')
+            if n % 100 == 0 or n==n_iters-1:
                 params_i = params.detach().cpu()
                 out_params_dict = channel.save_params_to_dict(params.detach().cpu())
                 print(out_params_dict)
