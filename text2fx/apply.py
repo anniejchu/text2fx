@@ -16,6 +16,18 @@ The script saves:
 
 Example Call:
 from text2fx not text2fx/text2fx
+
+TODO: TRY THE FOLLOWING
+python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
+    --export_dir experiments/2025-01-28/bass \
+    --learning_rate 0.01 \
+    --params_init_type random \
+    --roll_amt 10000 \
+    --n_iters 100 \
+    --criterion cosine-sim \
+    --model ms_clap \ 
+    --detailed_logging
+
 python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
     --export_dir experiments/2025-01-28/bass \
     --learning_rate 0.01 \
@@ -26,6 +38,7 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
     --model ms_clap
 
 
+    
 case 1 (sparse): single audio file, single text_target
 python -m text2fx.apply assets/multistem_examples/10s/guitar.wav eq reverb compression 'cold and dark' \
     --export_dir experiments/2025-01-28/guitar_multifx_2 \
@@ -43,26 +56,22 @@ def main(audio_path: Union[str, Path, AudioSignal],
          fx_chain: List[str], 
          text_target: str, 
          export_dir: str,
-         learning_rate: float = 0.001,
+         learning_rate: float = 0.01,
          params_init_type: str = 'random',
          roll_amt: Optional[int] = None,
          n_iters: int = 600,
          criterion: str = 'cosine-sim',
-         model: str = 'ms_clap') -> dict:
+         model: str = 'ms_clap',
+         detailed_log:bool = False) -> dict:
 
     # Preprocess full audio from path, return AudioSignal
-    # print('text2fx on full sig')
-    # in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
+    print('text2fx on full sig')
+    in_sig = tc.preprocess_audio(audio_path).to(DEVICE)
 
-    print('text2fx on 3s salient_excerpt')
-    in_sig = tc.preprocess_audio(audio_path, salient_excerpt_duration=3).to(DEVICE)
+    # print('text2fx on 3s salient_excerpt')
+    # in_sig = tc.preprocess_audio(audio_path, salient_excerpt_duration=3).to(DEVICE)
 
     print(f'1. processing input ... {audio_path}')
-
-    #     # OPTIONAL: # Preprocess full audio from path, return AudioSignal
-    # sig_short = AudioSignal.salient_excerpt(audio_path, duration=3).to(DEVICE)
-    # in_sig = tc.preprocess_audio(sig_short).to(DEVICE)
-    # print(f'1. processing SHORT (3s) input ... {audio_path}')
 
     # Create FX channel
     fx_channel = tc.create_channel(fx_chain)
@@ -70,6 +79,8 @@ def main(audio_path: Union[str, Path, AudioSignal],
 
     # Apply text-to-FX processing
     print(f'3. applying text2fx ..., target {text_target}')
+    if detailed_log:
+        print('with detailed logging every 100 iters')
     signal_effected, out_params, out_params_dict = text2fx(
         model_name=model, 
         sig_in=audio_path, 
@@ -81,6 +92,7 @@ def main(audio_path: Union[str, Path, AudioSignal],
         lr=learning_rate,
         n_iters=n_iters,
         roll_amt=roll_amt,
+        detailed_log=detailed_log,
     )
 
     # Export JSON parameters & output audio
@@ -132,6 +144,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_iters", type=int, default=600, help="Number of optimization iterations.")
     parser.add_argument("--criterion", type=str, default='cosine-sim', help="Optimization criterion.")
     parser.add_argument("--model", type=str, default='ms_clap', help="Model name.")
+    parser.add_argument("--detailed_log", action="store_true", help="Enable detailed logging every 100 iterations.")
+
 
     args = parser.parse_args()
 
@@ -144,4 +158,5 @@ if __name__ == "__main__":
          args.roll_amt,
          args.n_iters, 
          args.criterion, 
-         args.model)
+         args.model,
+         args.detailed_log)

@@ -10,10 +10,10 @@ from audiotools import AudioSignal
 from typing import Union, List
 
 from torch.utils.tensorboard import SummaryWriter
-
+import json
 # from msclap import CLAP
 
-from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio
+from text2fx.core import Channel, AbstractCLAPWrapper, Distortion, create_save_dir, preprocess_audio, detensor_dict
 from text2fx.constants import RUNS_DIR, SAMPLE_RATE, DEVICE
 
 
@@ -63,7 +63,6 @@ def get_default_channel():
         # dasp_pytorch.Compressor(sample_rate=SAMPLE_RATE),
         # dasp_pytorch.Gain(sample_rate=SAMPLE_RATE),
         # dasp_pytorch.NoiseShapedReverb(sample_rate=SAMPLE_RATE),
-        
         # Distortion(sample_rate=SAMPLE_RATE),
     )
 
@@ -78,9 +77,10 @@ def text2fx(
     n_iters: int = 600,
     criterion: str = "standard", 
     save_dir: str = None, # figure out a save path automatically,
-    params_init_type: str = "zeros",
+    params_init_type: str = "random",
     # seed_i: int = 0,
     roll_amt: int = None,
+    detailed_log: bool = False,
     export_audio: bool = False,
     log_tensorboard: bool = False,
 ):
@@ -210,6 +210,8 @@ def text2fx(
             sig_roll.samples[i:i+1] = rolled
 
         signal_effected = channel(sig_roll.to(device), torch.sigmoid(params.to(device)))
+        # signal_effected_original = channel(sig.clone().to(device), torch.sigmoid(params.to(device))) #for logging
+
 
         # Get CLAP embedding for effected audio
         embedding_effected = clap.get_audio_embeddings(signal_effected) #.get_audio_embeddings takes in preprocessed audio
@@ -249,6 +251,26 @@ def text2fx(
                 if writer:
                     writer.add_audio("effected", signal_effected.clone().ensure_max_of_audio().samples[0][0], n, sample_rate=signal_effected.sample_rate)
         
+        # detailed logging, log params + signal every 100 iters
+        if detailed_log:
+            detailed_dir = save_dir /'detailed_logs'
+            detailed_dir.mkdir(parents=True, exist_ok=True)
+            json_log_path = detailed_dir / "params_log.json"  # Path to save the JSON file
+            if n % 100 == 0:
+                params_i = params.detach().cpu()
+                out_params_dict = channel.save_params_to_dict(params.detach().cpu())
+                print(out_params_dict)
+                with open(json_log_path, "a") as json_log_file:
+                    json.dump({"iteration": n, "params": detensor_dict(out_params_dict)}, json_log_file)
+                    json_log_file.write("\n")  # For better readability in the file
+                    json.dump({"iteration": n, "raw_params": params_i.tolist()}, json_log_file)
+                    json_log_file.write("\n")  # For better readability in the file
+
+                
+                signal_effected.detach().cpu().ensure_max_of_audio().write(detailed_dir / f'{init_sig_path.stem}_{n}.wav')
+                # signal_effected_original.detach().cpu().ensure_max_of_audio().write(detailed_dir / f'{init_sig_path.stem}_{n}.wav')
+
+
     if log_tensorboard or export_audio:
         with open(log_file, "a") as log:
             log.write(f"ENDING Params Values: {params.data.cpu().numpy()}\n")
