@@ -582,7 +582,7 @@ def wavs_to_batch(samples: Union[str, Path, List[str], List[Path]]) -> AudioSign
         all_raw_sigs = samples
     
     signal_list = [preprocess_audio(raw_sig_i) for raw_sig_i in all_raw_sigs]
-    return AudioSignal.batch(signal_list)
+    return AudioSignal.batch(signal_list, pad_signals=True)
 
 
 def create_channel(fx_chain, sr=SAMPLE_RATE):

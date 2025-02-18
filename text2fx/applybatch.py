@@ -9,29 +9,21 @@ from text2fx.constants import SAMPLE_RATE, DEVICE
 
 
 """
+EXAMPLE CLI CALLS
+
 case 1: multiple audio files, single text_target
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold" \
     --fx_chain eq \
-    --export_dir experiments/2025-02-17/prod/batch_test_batchaudio_singledescriptor2 \
-    --learning_rate 0.01 \
-    --params_init_type random \
-    --n_iters 50 \
-    --criterion cosine-sim \
-    --model ms_clap
+    --export_dir experiments/batch_text_1
 
 case 2: single audio file, list of words
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s/drums.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq \
-    --export_dir experiments/2025-02-18/prod/batch_test_singlesig_multidescriptor \
-    --learning_rate 0.01 \
-    --params_init_type random \
-    --n_iters 50 \
-    --criterion cosine-sim \
-    --model ms_clap
+    --export_dir experiments/batch_text_2
 
 
 case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
@@ -39,14 +31,9 @@ python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
-    --export_dir experiments/2025-02-17/prod/batch_test2 \
-    --learning_rate 0.01 \
-    --params_init_type random \
-    --roll_amt 10000 \
-    --n_iters 50 \
-    --criterion cosine-sim \
-    --model ms_clap
-    """
+    --export_dir experiments/batch_text_3 
+
+"""
 
 
 def main(audio_source: Union[str, Path], #can be path to single file or dir of files
