@@ -3,15 +3,17 @@
 This repository contains utilities for mapping text descriptions to audio effect parameters.
 
 ## Text2FX: Harnessing CLAP Embeddings for Text-Guided Audio Effects
-Read the paper [here](https://arxiv.org/abs/2409.18847). Accepted at ICASSP 2025
+Read the paper [here](https://arxiv.org/abs/2409.18847)! Accepted at ICASSP 2025
 
-
-## Contents
+### Abstract
+This work introduces Text2FX, a method that leverages CLAP embeddings and differentiable digital signal processing to control audio effects, such as equalization and reverberation, using open-vocabulary natural language prompts (e.g., "make this sound in-your-face and bold"). Text2FX operates without retraining any models, relying instead on single-instance optimization within the existing embedding space, thus enabling a flexible, scalable approach to open-vocabulary sound transformations through interpretable and disentangled FX manipulation. We show that CLAP encodes valuable information for controlling audio effects and propose two optimization approaches using CLAP to map text to audio effect parameters. While we demonstrate with CLAP, this approach is applicable to any shared text-audio embedding space. Similarly, while we demonstrate with equalization and reverberation, any differentiable audio effect may be controlled.  %to control EQ and Reverb. 
+We conduct a listener study with diverse text prompts and source audio to evaluate the quality and alignment of these methods with human perception. 
+<!-- ## Contents
   * <a href="#install">Installation</a>
   * <a href="#cli"> Text2FX via CLI</a>
   * <a href="#demo">Text2FX Demo</a>
    * <a href="#citations">Cite</a>
-
+ -->
 
 
 <h2 id="install">Installation</h2>
@@ -89,21 +91,23 @@ python -m text2fx.applybatch \
 ```
 
 <h2 id="demo">Text2FX Demo</h2>
+<!-- Try Text2FX yourself:  
+Try it for yourself: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/csteinmetz1/dasp-pytorch/blob/main/examples/quickstart.ipynb) -->
 
- Try Text2FX yourself: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/text2fx/notebooks/demo.ipynb)
+ Try Text2FX yourself: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/anniejchu/blob/clean/text2fx/notebooks/demo.ipynb)
 
 
 <h2 id="citations">Citation</h2>
 If you use Text2FX, please cite via
 
-   ```bibtex
-   @misc{chu2024text2fxharnessingclapembeddings,
-         title={Text2FX: Harnessing CLAP Embeddings for Text-Guided Audio Effects}, 
-         author={Annie Chu and Patrick O'Reilly and Julia Barnett and Bryan Pardo},
-         year={2024},
-         eprint={2409.18847},
-         archivePrefix={arXiv},
-         primaryClass={eess.AS},
-         url={https://arxiv.org/abs/2409.18847}, 
-   }
-   ```   
+```bibtex
+@misc{chu2024text2fxharnessingclapembeddings,
+      title={Text2FX: Harnessing CLAP Embeddings for Text-Guided Audio Effects}, 
+      author={Annie Chu and Patrick O'Reilly and Julia Barnett and Bryan Pardo},
+      year={2024},
+      eprint={2409.18847},
+      archivePrefix={arXiv},
+      primaryClass={eess.AS},
+      url={https://arxiv.org/abs/2409.18847}, 
+}
+```   
