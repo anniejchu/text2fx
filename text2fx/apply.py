@@ -16,10 +16,8 @@ The script saves:
 - Exported optimized audio file (saved to export_dir).
 
 Example Call:
-from text2fx not text2fx/text2fx
-
-python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
-    --export_dir experiments/2025-02-18/prod_detailedlog2 \
+python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a hug' \
+    --export_dir experiments/prod_final \
     --learning_rate 0.01 \
     --params_init_type random \
     --roll_amt 10000 \
@@ -28,27 +26,12 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
     --model ms_clap \
     --detailed_log
 
-python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq tinny \
-    --export_dir experiments/2025-01-28/bass \
-    --learning_rate 0.01 \
-    --params_init_type random \
-    --roll_amt 10000 \
-    --n_iters 100 \
-    --criterion cosine-sim \
-    --model ms_clap
-
-
     
 case 1 (sparse): single audio file, single text_target
 python -m text2fx.apply assets/multistem_examples/10s/guitar.wav eq reverb compression 'cold and dark' \
     --export_dir experiments/2025-01-28/guitar_multifx_2 \
     --params_init_type random \
     --n_iters 200 
-
-python -m text2fx.apply /home/annie/research/text2fx/assets/multistem_examples/10s/guitar.wav eq 'cold and dark' \
---export_dir experiments/2025-02-17/prod/single \
---params_init_type random \
---n_iters 200 
 """
 
 

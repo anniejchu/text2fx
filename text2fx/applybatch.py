@@ -16,14 +16,14 @@ python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold" \
     --fx_chain eq \
-    --export_dir experiments/batch_text_1
+    --export_dir experiments/prod_final/case1
 
 case 2: single audio file, list of words
 python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s/drums.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq \
-    --export_dir experiments/batch_text_2
+    --export_dir experiments/prod_final/case2
 
 
 case 3: multiple audio file, multiple text_targets (must have same # of files to targets)
@@ -31,7 +31,7 @@ python -m text2fx.applybatch \
     --audio_source assets/multistem_examples/10s \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
-    --export_dir experiments/batch_text_3 
+    --export_dir experiments/prod_final/case3
 
 """
 
@@ -114,14 +114,13 @@ if __name__ == "__main__":
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for optimization.')
     parser.add_argument('--params_init_type', type=str, default='random', help='Parameter initialization type.')
     parser.add_argument('--roll_amt', type=int, default=None, help='Roll amount for augmentation.')
-    parser.add_argument('--n_iters', type=int, default=50, help='Number of iterations for optimization.')
+    parser.add_argument('--n_iters', type=int, default=600, help='Number of iterations for optimization.')
     parser.add_argument('--criterion', type=str, default='cosine-sim', help='Loss criterion for optimization.')
     parser.add_argument('--model', type=str, default='ms_clap', help='Model name for text-to-FX processing.')
 
     args = parser.parse_args()
     descriptions = [desc.strip() for desc in args.descriptions_source.split(',')] if args.descriptions_source else []
-    print(descriptions)
-
+    
     main(
         audio_source=args.audio_source,
         descriptions_source=descriptions,#args.descriptions_source,
