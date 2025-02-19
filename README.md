@@ -61,6 +61,9 @@ python -m text2fx.apply assets/guitar.wav eq 'warm like a hug' \
 
 ### Batching: n audio files AND/OR n text descriptors
 **Case 1: multiple audio files, single text_target**
+**note**: the comma `,` is used to separate multiple text targets. 
+for example, `cold, warm` will be treated as two separate targets: `cold` and `warm` and will produce two audio files.
+
 ```
 python -m text2fx.applybatch \
     --audio_source ./assets/ \
@@ -69,6 +72,7 @@ python -m text2fx.applybatch \
     --export_dir experiments/case1
 ```
 **Case 2: single audio file, multiple text_target**
+for multiple text targets, you can separate each target with a comma `,`
 ```
 python -m text2fx.applybatch \
     --audio_source ./assets/guitar.wav \
@@ -77,8 +81,6 @@ python -m text2fx.applybatch \
     --export_dir experiments/case2
 ```
 **Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)**
-for multiple text targets, you can separate each target with a comma `,`
-
 ```
 python -m text2fx.applybatch \
     --audio_source ./assets/ \
