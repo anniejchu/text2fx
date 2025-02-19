@@ -21,7 +21,7 @@ We conduct a listener study with diverse text prompts and source audio to evalua
 1. Create conda environment with Python 3.9:
    ```
    conda create -y -n text2fx python=3.9
-   source activate text2fx
+   conda activate text2fx
    ```
 
    If you want to use Jupyter, run the following to add your conda environment as a kernel:
@@ -38,11 +38,6 @@ We conduct a listener study with diverse text prompts and source audio to evalua
 
    ```
 
-3. Install dependencies:
-   ```
-   cd text2fx
-   python -m pip install -r requirements.txt
-   ```
 <!-- 
 ## Running the Gradio UI
 
@@ -61,7 +56,7 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a h
     --learning_rate 0.01 \
     --params_init_type random \
     --n_iters 600 \
-    --criterion cosine-sim \
+    --criterion cosine-sim 
 ```
 
 ### Batching: n audio files AND/OR n text descriptors
