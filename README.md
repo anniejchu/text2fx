@@ -51,8 +51,8 @@ Run the following command to start the Text2FX command line interface:
 
 ### Quick Use: 1 audio file, 1 text descriptor
 ```
-python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a hug' \
-    --export_dir experiments/prod_final \
+python -m text2fx.apply assets/guitar.wav eq 'warm like a hug' \
+    --export_dir experiments/ \
     --learning_rate 0.01 \
     --params_init_type random \
     --n_iters 600 \
@@ -63,26 +63,28 @@ python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a h
 **Case 1: multiple audio files, single text_target**
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio \
+    --audio_source ./assets/ \
     --descriptions_source "cold" \
     --fx_chain eq \
-    --export_dir experiments/prod_final/case1
+    --export_dir experiments/case1
 ```
 **Case 2: single audio file, multiple text_target**
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio/guitar.wav \
+    --audio_source ./assets/guitar.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq compression\
-    --export_dir experiments/prod_final/case2
+    --export_dir experiments/case2
 ```
 **Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)**
+for multiple text targets, you can separate each target with a comma `,`
+
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio \
+    --audio_source ./assets/ \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
-    --export_dir experiments/prod_final/case3
+    --export_dir experiments/case3
 ```
 
 <h2 id="demo">Text2FX Demo</h2>
