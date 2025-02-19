@@ -1,0 +1,4 @@
+guitar.wav --> Audealize (https://github.com/interactiveaudiolab/audealize_api/tree/master/static/audio)
+salsa_piano.wav --> Salsa Piano 90 BPM by TheLastOneOnEarth -- https://freesound.org/s/698661/ -- License: Attribution 4.0
+lounge_loop.wav --> Glamour Hip-Hop Loop by SergeQuadrado -- https://freesound.org/s/683389/ -- License: Attribution NonCommercial 4.0
+speech.wav --> VCTK dataset (filename: wav48_silence_trimmed/p225/p225_001_mic1.flac)
