@@ -4,7 +4,6 @@ pretrained/*
 experiments/*
 runs/*
 # notebooks/
-assets/*
 
 **/..git/*
 __pycache__/
@@ -19,7 +18,6 @@ __pycache__/
 
 **/full_samples/
 **/extra/
-assets/*
 
 word_*
 test_*

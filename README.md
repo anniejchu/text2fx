@@ -21,7 +21,7 @@ We conduct a listener study with diverse text prompts and source audio to evalua
 1. Create conda environment with Python 3.9:
    ```
    conda create -y -n text2fx python=3.9
-   source activate text2fx
+   conda activate text2fx
    ```
 
    If you want to use Jupyter, run the following to add your conda environment as a kernel:
@@ -38,11 +38,6 @@ We conduct a listener study with diverse text prompts and source audio to evalua
 
    ```
 
-3. Install dependencies:
-   ```
-   cd text2fx
-   python -m pip install -r requirements.txt
-   ```
 <!-- 
 ## Running the Gradio UI
 
@@ -56,38 +51,42 @@ Run the following command to start the Text2FX command line interface:
 
 ### Quick Use: 1 audio file, 1 text descriptor
 ```
-python -m text2fx.apply assets/multistem_examples/10s/bass.wav eq 'warm like a hug' \
-    --export_dir experiments/prod_final \
+python -m text2fx.apply assets/guitar.wav eq 'warm like a hug' \
+    --export_dir experiments/ \
     --learning_rate 0.01 \
     --params_init_type random \
     --n_iters 600 \
-    --criterion cosine-sim \
+    --criterion cosine-sim 
 ```
 
 ### Batching: n audio files AND/OR n text descriptors
 **Case 1: multiple audio files, single text_target**
+**note**: the comma `,` is used to separate multiple text targets. 
+for example, `cold, warm` will be treated as two separate targets: `cold` and `warm` and will produce two audio files.
+
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio \
+    --audio_source ./assets/ \
     --descriptions_source "cold" \
     --fx_chain eq \
-    --export_dir experiments/prod_final/case1
+    --export_dir experiments/case1
 ```
 **Case 2: single audio file, multiple text_target**
+for multiple text targets, you can separate each target with a comma `,`
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio/guitar.wav \
+    --audio_source ./assets/guitar.wav \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq compression\
-    --export_dir experiments/prod_final/case2
+    --export_dir experiments/case2
 ```
 **Case 3:  multiple audio files, multiple text_targets (must have same # of files to targets)**
 ```
 python -m text2fx.applybatch \
-    --audio_source notebooks/audio \
+    --audio_source ./assets/ \
     --descriptions_source "cold, warm, like a trumpet, muffled, lonely like a ghost" \
     --fx_chain eq reverb \
-    --export_dir experiments/prod_final/case3
+    --export_dir experiments/case3
 ```
 
 <h2 id="demo">Text2FX Demo</h2>

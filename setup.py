@@ -4,6 +4,9 @@ from setuptools import setup
 with open("README.md") as f:
     long_description = f.read()
 
+with open('requirements.txt', 'r') as f:
+    requirements = f.read().splitlines()
+
 setup(
     name="text2fx",
     version="0.0.1",
@@ -14,10 +17,9 @@ setup(
     long_description_content_type="text/markdown",
     author="Annie Chu, Patrick O'Reilly",
     author_email="anniechu@u.northwestern.edu",
-    python_requires="==3.9.0",
+    python_requires=">=3.9",
     url="https://github.com/anniejchu/text2fx",
     license="MIT",
     packages=find_packages(),
-    install_requires=[
-    ],
+    install_requires=requirements,
 )
