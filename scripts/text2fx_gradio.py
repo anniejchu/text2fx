@@ -4,12 +4,12 @@ import gradio as gr
 import numpy as np
 
 from pathlib import Path
-from text2fx.text2fx_app import text2fx_paper as text2fx
+from text2fx.__main__ import text2fx
 import text2fx.core as tc
 import text2fx.core_plotting as tcplot
 import torch
 import os
-from process_file_from_params import normalize_param_dict
+# from text2fx.applyFXparams import normalize_param_dict
 import uuid
 import shutil
 import random

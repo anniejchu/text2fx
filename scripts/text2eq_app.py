@@ -4,7 +4,7 @@ import gradio as gr
 import numpy as np
 
 from pathlib import Path
-from text2fx.text2fx_app import text2fx_paper as text2fx
+from text2fx.__main__ import text2fx
 import text2fx.core as tc
 import text2fx.core_plotting as tcplot
 import torch
