@@ -37,6 +37,12 @@ This work introduces Text2FX, a method that leverages CLAP embeddings and differ
 
    ```
 
+3. Install Dependencies:
+   ```
+   cd text2fx
+   pip install -r requirements.txt
+   ```
+
 <!-- 
 ## Running the Gradio UI
 
